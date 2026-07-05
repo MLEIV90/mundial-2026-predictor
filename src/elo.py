@@ -29,7 +29,14 @@ https://www.eloratings.net/about :
              CONCACAF Championship, Gold Cup, Confederations Cup,
              Oceania Nations Cup
     K = 40   Any qualifier for the tournaments above (or for other
-             competitions) -- matched via "qualification" in the name
+             competitions) -- matched via "qualification" in the name.
+             Also any "Nations League" competition (UEFA Nations League,
+             CONCACAF Nations League, ...): these are competitive,
+             official tournaments with real stakes (promotion/relegation,
+             continental championship qualification), so they outrank
+             friendlies and regional cups, but they aren't full
+             continental championship finals either, so they sit in the
+             qualifier tier rather than K_MAJOR_TOURNAMENT.
     K = 30   Everything else not covered above (regional cups, games,
              minor invitational tournaments, ...)
     K = 20   Friendly
@@ -92,6 +99,8 @@ def get_k_factor(tournament: str) -> float:
     if tournament in MAJOR_TOURNAMENTS:
         return K_MAJOR_TOURNAMENT
     if "qualification" in tournament:
+        return K_QUALIFICATION
+    if "Nations League" in tournament:
         return K_QUALIFICATION
     if tournament == "Friendly":
         return K_FRIENDLY
