@@ -14,6 +14,7 @@ Writes:
     data/app/model_ratings.json    -- current Elo top teams
     data/app/backtest.json         -- model vs market on played knockout fixtures
     data/app/live_predictions.json -- model vs market on upcoming knockout fixtures
+    data/app/simulation.json       -- Monte-Carlo bracket simulation (P(reach QF/SF/final/champion))
 
 data/app/ is committed to git (see the !data/app/ exception in
 .gitignore) since the deployed app needs these files to exist.
@@ -39,6 +40,12 @@ from src.evaluation import (
     generate_live_predictions,
     save_backtest_json,
     save_predictions_json,
+)
+from src.simulation import (
+    DEFAULT_N_SIMULATIONS,
+    build_remaining_bracket,
+    save_simulation_json,
+    simulate_tournament,
 )
 
 APP_DATA_DIR = Path("data/app")
@@ -84,10 +91,26 @@ def main() -> None:
 
     print("Generating live predictions for upcoming round-of-16 fixtures...")
     unplayed = find_unplayed_fixtures_in_window(matches, ROUND_OF_16_START_DATE, ROUND_OF_16_END_DATE)
-    live_records, _, live_as_of = generate_live_predictions(matches, unplayed)
+    live_records, live_model, live_as_of = generate_live_predictions(matches, unplayed)
     live_path = APP_DATA_DIR / "live_predictions.json"
     save_predictions_json(live_records, str(live_path), live_as_of, generated_at=generated_at)
     print(f"  wrote {live_path} ({len(live_records)} fixtures)")
+
+    print("Running Monte Carlo simulation of the remaining bracket...")
+    bracket = build_remaining_bracket()
+    # Reuses live_model + current_ratings (already fit/computed above) instead
+    # of fitting the goals model a third time -- the simulation's "today" is
+    # the same "today" as the live predictions.
+    sim_results = simulate_tournament(live_model, current_ratings, bracket=bracket)
+    sim_path = APP_DATA_DIR / "simulation.json"
+    save_simulation_json(
+        sim_results, bracket, str(sim_path), live_as_of,
+        n_simulations=DEFAULT_N_SIMULATIONS,
+        generated_at=generated_at,
+    )
+    print(f"  wrote {sim_path}")
+    top = sim_results.iloc[0]
+    print(f"  title favorite: {top['team']} ({top['p_champion']:.1%})")
 
     print("\nDone. Commit data/app/*.json to publish these results to the app.")
 

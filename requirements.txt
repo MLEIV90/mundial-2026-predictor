@@ -4,5 +4,6 @@ scikit-learn
 xgboost
 statsmodels
 streamlit
+altair
 requests
 python-dotenv
