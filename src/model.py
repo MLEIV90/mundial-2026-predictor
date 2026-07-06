@@ -25,12 +25,51 @@ levels.
 
 ``attack``/``defense`` are only identified up to a shared additive shift
 (raising every team's attack by c and lowering every defense by c leaves
-every match's rates unchanged), so a small L2 penalty is added on both
-during fitting. This pins down that shift and, as a side effect, shrinks
-teams with little match history toward the average team (attack=defense=0)
--- a sensible default for sparsely observed sides. A team that never
-appears in the training window falls back to attack=defense=0 (an
-average team) at prediction time.
+every match's rates unchanged), so an L2 penalty (``reg_strength``) is
+added on both during fitting. This pins down that shift and, as a side
+effect, shrinks teams with little match history toward the average team
+(attack=defense=0) -- a sensible default for sparsely observed sides. A
+team that never appears in the training window falls back to
+attack=defense=0 (an average team) at prediction time.
+
+Calibration finding: Elo vs. attack/defense (2026-07)
+--------------------------------------------------------
+With the old default (``reg_strength=0.01``), the model gave France only
+32% to beat Morocco in regulation despite a ~150-point Elo edge, against
+60% from the market (Pinnacle) -- a 28-point gap. The cause: Morocco's
+defense parameter had fit to an exceptionally strong recent scoring
+record (a handful of low-scoring matches this tournament, weighted
+heavily by the time-decay), which is real signal but from a very small,
+noisy sample -- and it was swamping the Elo term's contribution, which
+is estimated from the team's *entire* Elo history and is comparatively
+well-calibrated.
+
+``reg_strength`` was swept from 0.01 to 50 and scored against
+already-played knockout fixtures (``src.evaluation.backtest_knockout_fixtures``,
+scored against actual outcomes, *not* against the market -- see that
+function's docstring for why the market must not be the tuning target).
+0.01 (Brier 0.1522) was the worst value tested; **10.0 was the best**
+(Brier 0.1416, log loss 0.4501 -- both better than the market's own
+0.1529/0.4821 on this sample), which is why it's the default now. The
+curve isn't perfectly smooth (20 fixtures is a small backtest), but the
+improvement from roughly 1.0 upward is consistent enough to trust: 3.0
+-> 0.1436, 8.0 -> 0.1429, 10.0 -> 0.1416, 20.0 -> 0.1449, 50.0 -> 0.1480
+(degrading again).
+
+What raising ``reg_strength`` does *not* do: fitted ``beta_elo`` turns
+out to be essentially constant (~0.0019) across that entire range -- it
+is not being "crowded out" by attack/defense in some fixable
+multicollinearity sense. The improvement comes entirely from shrinking
+attack/defense toward 0, which lets the (unchanged) Elo term matter
+*relatively* more. At the new default, France's chance of beating
+Morocco rises from 32% to 39.5% -- a real improvement, but well short of
+the market's 60%. Pushing further (``reg_strength=50``) narrows it a bit
+more (47%) but makes the aggregate backtest *worse* than at 10.0, because
+by then the model is discarding genuine, currently-informative team form
+(e.g. a team on a hot streak Elo hasn't caught up to yet) along with the
+noise. Fully closing this one anecdote would mean overfitting to it (or
+to the market) at the expense of every other matchup, which is exactly
+what ``reg_strength`` should not be tuned to do.
 
 Leakage-free fitting
 ---------------------
@@ -87,7 +126,7 @@ from scipy.special import gammaln
 from scipy.stats import poisson
 
 DEFAULT_HALF_LIFE_DAYS = 730.0
-DEFAULT_L2_REG = 0.01
+DEFAULT_REG_STRENGTH = 10.0
 DEFAULT_MIN_WEIGHT = 1e-6
 TAU_FLOOR = 1e-6
 
@@ -175,7 +214,7 @@ def fit_poisson_model(
     half_life_days: float = DEFAULT_HALF_LIFE_DAYS,
     rho: float = 0.0,
     fit_rho: bool = True,
-    l2_reg: float = DEFAULT_L2_REG,
+    reg_strength: float = DEFAULT_REG_STRENGTH,
     min_weight: float = DEFAULT_MIN_WEIGHT,
     max_iter: int = 2000,
 ) -> GoalsModel:
@@ -203,9 +242,12 @@ def fit_poisson_model(
         parameters. If False, rho is held fixed at the given value --
         pass ``rho=0.0, fit_rho=False`` for the plain independent-Poisson
         baseline.
-    l2_reg:
-        L2 penalty strength on the attack/defense parameters (see module
-        docstring for why this is needed).
+    reg_strength:
+        L2 penalty strength on the attack/defense parameters -- both for
+        identifiability and to shrink noisy, small-sample team strength
+        toward the (better-calibrated) Elo-driven estimate. See "Calibration
+        finding" in the module docstring for why the default is 10.0, not a
+        smaller "just enough for identifiability" value.
     min_weight:
         Matches whose time-decay weight falls below this are dropped
         before fitting (numerical optimization only, see module
@@ -315,7 +357,7 @@ def fit_poisson_model(
 
         ll_i = poisson_ll + log_tau
         logL = np.sum(weight * ll_i)
-        reg = l2_reg * (np.sum(attack**2) + np.sum(defense**2))
+        reg = reg_strength * (np.sum(attack**2) + np.sum(defense**2))
         nll = -logL + reg
 
         d_intercept = np.sum(g_home + g_away)
@@ -337,8 +379,8 @@ def fit_poisson_model(
         if fit_rho:
             grad[3] = -d_rho
             offset = 4
-        grad[offset : offset + n_teams] = -attack_grad + 2 * l2_reg * attack
-        grad[offset + n_teams :] = -defense_grad + 2 * l2_reg * defense
+        grad[offset : offset + n_teams] = -attack_grad + 2 * reg_strength * attack
+        grad[offset + n_teams :] = -defense_grad + 2 * reg_strength * defense
 
         return nll, grad
 

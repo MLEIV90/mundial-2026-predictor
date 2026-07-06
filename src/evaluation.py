@@ -62,7 +62,7 @@ from src.knockout import (
     DEFAULT_PENALTY_WIN_PROB,
     advance_probability,
 )
-from src.model import DEFAULT_HALF_LIFE_DAYS, GoalsModel, fit_poisson_model
+from src.model import DEFAULT_HALF_LIFE_DAYS, DEFAULT_REG_STRENGTH, GoalsModel, fit_poisson_model
 from src.odds import find_world_cup_fixtures, get_market_probabilities_for_teams
 
 # Empirically determined from the current results.csv structure (no explicit
@@ -120,6 +120,7 @@ def backtest_knockout_fixtures(
     start_date: str = KNOCKOUT_START_DATE,
     end_date: Optional[str] = None,
     half_life_days: float = DEFAULT_HALF_LIFE_DAYS,
+    reg_strength: float = DEFAULT_REG_STRENGTH,
     et_factor: float = DEFAULT_ET_FACTOR,
     penalty_win_prob: float = DEFAULT_PENALTY_WIN_PROB,
     verbose: bool = True,
@@ -133,6 +134,13 @@ def backtest_knockout_fixtures(
     share one fit, since ``date < as_of_date`` excludes same-day matches
     from each other identically either way). Market odds are the de-vigged
     Pinnacle closing line via ``src.odds``.
+
+    ``reg_strength`` is passed straight through to ``fit_poisson_model``
+    (see its docstring, and the "Elo vs. attack/defense calibration" note
+    in the ``src.model`` module docstring) -- this is the knob to use if
+    the model is under- or over-weighting team-strength Elo relative to
+    noisy recent-form attack/defense parameters. It should be tuned
+    against *this* backtest (real outcomes), not against the market.
 
     Returns ``(comparison_df, summary)`` where ``summary`` has
     ``n_fixtures``, ``n_skipped`` (unresolved shootouts or missing market
@@ -185,7 +193,9 @@ def backtest_knockout_fixtures(
 
         as_of = fixture["date"]
         if as_of not in model_cache:
-            model_cache[as_of] = fit_poisson_model(df_elo, as_of_date=as_of, half_life_days=half_life_days)
+            model_cache[as_of] = fit_poisson_model(
+                df_elo, as_of_date=as_of, half_life_days=half_life_days, reg_strength=reg_strength
+            )
         model = model_cache[as_of]
 
         adv = advance_probability(
@@ -260,6 +270,7 @@ def generate_live_predictions(
     df: pd.DataFrame,
     fixtures_to_predict: pd.DataFrame,
     half_life_days: float = DEFAULT_HALF_LIFE_DAYS,
+    reg_strength: float = DEFAULT_REG_STRENGTH,
     et_factor: float = DEFAULT_ET_FACTOR,
     penalty_win_prob: float = DEFAULT_PENALTY_WIN_PROB,
 ) -> Tuple[List[dict], GoalsModel, pd.Timestamp]:
@@ -287,7 +298,9 @@ def generate_live_predictions(
     """
     df_elo, current_ratings = compute_elo_ratings(df)
     as_of_date = df_elo["date"].max() + pd.Timedelta(days=1)
-    model = fit_poisson_model(df_elo, as_of_date=as_of_date, half_life_days=half_life_days)
+    model = fit_poisson_model(
+        df_elo, as_of_date=as_of_date, half_life_days=half_life_days, reg_strength=reg_strength
+    )
 
     # Force-refreshed for the same reason as in backtest_knockout_fixtures:
     # this list (which fixtures exist and their status) goes stale as the
