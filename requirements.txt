@@ -5,3 +5,4 @@ xgboost
 statsmodels
 streamlit
 requests
+python-dotenv
