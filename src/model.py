@@ -125,6 +125,8 @@ from scipy.optimize import minimize
 from scipy.special import gammaln
 from scipy.stats import poisson
 
+from src.blend import blend_outcome_probabilities, elo_match_probabilities
+
 DEFAULT_HALF_LIFE_DAYS = 730.0
 DEFAULT_REG_STRENGTH = 10.0
 DEFAULT_MIN_WEIGHT = 1e-6
@@ -176,7 +178,15 @@ def dixon_coles_tau(x, y, lambda_home, lambda_away, rho: float):
 
 @dataclass
 class GoalsModel:
-    """A fitted Dixon-Coles-style bivariate Poisson goals model."""
+    """A fitted Dixon-Coles-style bivariate Poisson goals model.
+
+    ``base_draw_rate`` is the time-decay-weighted empirical draw rate in
+    this model's own training window -- not a modeling parameter of the
+    Poisson model itself, but carried on the fitted model so
+    ``src.blend`` can derive pure-Elo win/draw/loss probabilities from
+    the same data window without needing the raw match history passed
+    around separately.
+    """
 
     teams: List[str]
     attack: Dict[str, float]
@@ -189,6 +199,7 @@ class GoalsModel:
     as_of_date: pd.Timestamp
     n_matches_used: int
     converged: bool
+    base_draw_rate: float
 
     def get_attack(self, team: str) -> float:
         """Attack strength for ``team``, or 0.0 (average team) if unseen."""
@@ -288,6 +299,10 @@ def fit_poisson_model(
     y = train["away_score"].to_numpy(dtype=float)
     elo_diff = (train["home_elo_pre"] - train["away_elo_pre"]).to_numpy(dtype=float)
     home_flag = (~train["neutral"].to_numpy(dtype=bool)).astype(float)
+
+    # Time-decay-weighted draw rate in this same training window, carried on
+    # the fitted model for src.blend's pure-Elo derivation (see GoalsModel).
+    base_draw_rate = float(np.average((x == y).astype(float), weights=weight))
 
     use_correction = fit_rho or (rho != 0.0)
     n_free = 3 + (1 if fit_rho else 0) + 2 * n_teams
@@ -414,6 +429,7 @@ def fit_poisson_model(
         as_of_date=as_of_date,
         n_matches_used=len(train),
         converged=bool(result.success),
+        base_draw_rate=base_draw_rate,
     )
 
 
@@ -500,6 +516,7 @@ def predict_match(
     away_elo_pre: float,
     neutral: bool = False,
     max_goals: int = 10,
+    blend_weight: float = 1.0,
 ) -> MatchPrediction:
     """Predict the full scoreline distribution for one match.
 
@@ -507,6 +524,15 @@ def predict_match(
     matrix for scorelines 0..``max_goals`` on each side, then derives
     P(home win) / P(draw) / P(away win) and each side's expected goals
     directly from that matrix.
+
+    ``blend_weight`` (default 1.0, i.e. pure Poisson) optionally blends
+    the outcome probabilities with pure Elo via ``src.blend`` -- see that
+    module for why (the Poisson model is conservative on clear
+    favorites) and for the explicit framing of this as bias correction,
+    not market-fitting. Only ``home_win``/``draw``/``away_win`` are
+    blended; ``home_xg``/``away_xg``/``score_matrix`` remain the
+    Poisson model's own output, since pure Elo has no notion of expected
+    goals or a scoreline distribution to blend with.
     """
     lambda_home, lambda_away = expected_goal_rates(
         model, home_team, away_team, home_elo_pre, away_elo_pre, neutral
@@ -515,6 +541,12 @@ def predict_match(
     matrix, home_win, draw, away_win = score_matrix_and_outcomes(
         lambda_home, lambda_away, model.rho, max_goals=max_goals
     )
+
+    if blend_weight < 1.0:
+        elo_probs = elo_match_probabilities(home_elo_pre, away_elo_pre, model.base_draw_rate, neutral)
+        home_win, draw, away_win = blend_outcome_probabilities(
+            (home_win, draw, away_win), elo_probs, blend_weight
+        )
 
     goals = np.arange(max_goals + 1)
     home_xg = float(np.sum(matrix.sum(axis=1) * goals))

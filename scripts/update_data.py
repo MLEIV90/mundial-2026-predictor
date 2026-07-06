@@ -29,6 +29,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from src.blend import DEFAULT_BLEND_WEIGHT
 from src.data import load_results
 from src.elo import compute_elo_ratings, top_teams
 from src.evaluation import (
@@ -80,7 +81,10 @@ def main() -> None:
 
     print("Backtesting the model against the market on already-played knockout fixtures...")
     print("(refits the goals model per fixture date -- this takes a couple of minutes)")
-    comparison, summary = backtest_knockout_fixtures(matches, start_date=KNOCKOUT_START_DATE)
+    print(f"(using blend_weight={DEFAULT_BLEND_WEIGHT} -- see src/blend.py for why)")
+    comparison, summary = backtest_knockout_fixtures(
+        matches, start_date=KNOCKOUT_START_DATE, blend_weight=DEFAULT_BLEND_WEIGHT
+    )
     backtest_path = APP_DATA_DIR / "backtest.json"
     save_backtest_json(comparison, summary, str(backtest_path), generated_at=generated_at)
     print(f"  wrote {backtest_path}")
@@ -91,7 +95,9 @@ def main() -> None:
 
     print("Generating live predictions for upcoming round-of-16 fixtures...")
     unplayed = find_unplayed_fixtures_in_window(matches, ROUND_OF_16_START_DATE, ROUND_OF_16_END_DATE)
-    live_records, live_model, live_as_of = generate_live_predictions(matches, unplayed)
+    live_records, live_model, live_as_of = generate_live_predictions(
+        matches, unplayed, blend_weight=DEFAULT_BLEND_WEIGHT
+    )
     live_path = APP_DATA_DIR / "live_predictions.json"
     save_predictions_json(live_records, str(live_path), live_as_of, generated_at=generated_at)
     print(f"  wrote {live_path} ({len(live_records)} fixtures)")
@@ -101,7 +107,7 @@ def main() -> None:
     # Reuses live_model + current_ratings (already fit/computed above) instead
     # of fitting the goals model a third time -- the simulation's "today" is
     # the same "today" as the live predictions.
-    sim_results = simulate_tournament(live_model, current_ratings, bracket=bracket)
+    sim_results = simulate_tournament(live_model, current_ratings, bracket=bracket, blend_weight=DEFAULT_BLEND_WEIGHT)
     sim_path = APP_DATA_DIR / "simulation.json"
     save_simulation_json(
         sim_results, bracket, str(sim_path), live_as_of,

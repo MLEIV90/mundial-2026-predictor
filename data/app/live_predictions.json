@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-06T14:32:09.558764+00:00",
+  "generated_at": "2026-07-06T17:21:36.643040+00:00",
   "model_as_of_date": "2026-07-06",
   "predictions": [
     {
@@ -9,8 +9,8 @@
       "neutral": true,
       "home_elo_pre": 2078.242205332236,
       "away_elo_pre": 2224.3304209429552,
-      "model_p_home_advances": 0.3364119682794588,
-      "model_p_away_advances": 0.6635880317205411,
+      "model_p_home_advances": 0.32191265368970945,
+      "model_p_away_advances": 0.6780873463102907,
       "market_p_home_advances": 0.37204335402489486,
       "market_p_away_advances": 0.6279566459751049,
       "market_source": "pinnacle"
@@ -22,8 +22,8 @@
       "neutral": false,
       "home_elo_pre": 1893.2951734344135,
       "away_elo_pre": 1988.347454035107,
-      "model_p_home_advances": 0.4823728970320555,
-      "model_p_away_advances": 0.5176271029679445,
+      "model_p_home_advances": 0.4898638164536976,
+      "model_p_away_advances": 0.5101361835463024,
       "market_p_home_advances": 0.5026961882541988,
       "market_p_away_advances": 0.49730381174580124,
       "market_source": "pinnacle"
@@ -35,8 +35,8 @@
       "neutral": true,
       "home_elo_pre": 2227.7823702833507,
       "away_elo_pre": 1864.6685806786704,
-      "model_p_home_advances": 0.8256015813853141,
-      "model_p_away_advances": 0.17439841861468577,
+      "model_p_home_advances": 0.8487223287715271,
+      "model_p_away_advances": 0.15127767122847283,
       "market_p_home_advances": 0.793867611190272,
       "market_p_away_advances": 0.20613238880972784,
       "market_source": "pinnacle"
@@ -48,8 +48,8 @@
       "neutral": true,
       "home_elo_pre": 2017.5884054922976,
       "away_elo_pre": 2093.092311381108,
-      "model_p_home_advances": 0.4017513725180824,
-      "model_p_away_advances": 0.5982486274819174,
+      "model_p_home_advances": 0.39623297280912895,
+      "model_p_away_advances": 0.6037670271908709,
       "market_p_home_advances": 0.431112009582576,
       "market_p_away_advances": 0.568887990417424,
       "market_source": "pinnacle"

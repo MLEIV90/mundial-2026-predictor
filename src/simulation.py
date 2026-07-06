@@ -129,12 +129,13 @@ def _resolve(
     rng: random.Random,
     reached_this_run: Dict[str, Set[str]],
     prob_cache: Dict[Tuple[str, str, bool], AdvanceResult],
+    blend_weight: float,
 ) -> str:
     if isinstance(node, str):
         return node
 
-    team_a = _resolve(node.home, model, current_ratings, rng, reached_this_run, prob_cache)
-    team_b = _resolve(node.away, model, current_ratings, rng, reached_this_run, prob_cache)
+    team_a = _resolve(node.home, model, current_ratings, rng, reached_this_run, prob_cache, blend_weight)
+    team_b = _resolve(node.away, model, current_ratings, rng, reached_this_run, prob_cache, blend_weight)
 
     stage = _stage_of(node.label)
     if stage is not None:
@@ -146,7 +147,9 @@ def _resolve(
     if adv is None:
         elo_a = current_ratings.get(team_a, 1500.0)
         elo_b = current_ratings.get(team_b, 1500.0)
-        adv = advance_probability(model, team_a, team_b, elo_a, elo_b, neutral=node.neutral)
+        adv = advance_probability(
+            model, team_a, team_b, elo_a, elo_b, neutral=node.neutral, blend_weight=blend_weight
+        )
         prob_cache[key] = adv
 
     winner = team_a if rng.random() < adv.p_a_advances else team_b
@@ -163,8 +166,14 @@ def simulate_tournament(
     bracket: Optional[Tie] = None,
     n_simulations: int = DEFAULT_N_SIMULATIONS,
     seed: int = DEFAULT_SEED,
+    blend_weight: float = 1.0,
 ) -> pd.DataFrame:
     """Run a Monte-Carlo simulation of the remaining bracket.
+
+    ``blend_weight`` (default 1.0, pure Poisson) is passed through to
+    every ``advance_probability`` call -- see ``src.blend`` for what it
+    does (a principled correction for the Poisson model's favorite bias,
+    not market-fitting).
 
     Returns a DataFrame with one row per team still alive in the bracket
     and columns ``p_quarterfinal``/``p_semifinal``/``p_final``/
@@ -179,7 +188,7 @@ def simulate_tournament(
 
     for _ in range(n_simulations):
         reached_this_run: Dict[str, Set[str]] = {}
-        _resolve(bracket, model, current_ratings, rng, reached_this_run, prob_cache)
+        _resolve(bracket, model, current_ratings, rng, reached_this_run, prob_cache, blend_weight)
         for team, stages in reached_this_run.items():
             for stage in stages:
                 counts[team][stage] += 1

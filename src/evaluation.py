@@ -123,6 +123,7 @@ def backtest_knockout_fixtures(
     reg_strength: float = DEFAULT_REG_STRENGTH,
     et_factor: float = DEFAULT_ET_FACTOR,
     penalty_win_prob: float = DEFAULT_PENALTY_WIN_PROB,
+    blend_weight: float = 1.0,
     verbose: bool = True,
 ) -> Tuple[pd.DataFrame, Dict[str, float]]:
     """Backtest the goals model against the betting market on already-played
@@ -141,6 +142,12 @@ def backtest_knockout_fixtures(
     the model is under- or over-weighting team-strength Elo relative to
     noisy recent-form attack/defense parameters. It should be tuned
     against *this* backtest (real outcomes), not against the market.
+
+    ``blend_weight`` is passed through to ``advance_probability`` (see
+    ``src.blend`` for what it does and why 1.0, pure Poisson, is this
+    function's own default -- like ``reg_strength``, it should be chosen
+    by how it moves *this* backtest's Brier/log loss against real
+    outcomes, not by how closely it matches the market).
 
     Returns ``(comparison_df, summary)`` where ``summary`` has
     ``n_fixtures``, ``n_skipped`` (unresolved shootouts or missing market
@@ -202,6 +209,7 @@ def backtest_knockout_fixtures(
             model, fixture["home_team"], fixture["away_team"],
             fixture["home_elo_pre"], fixture["away_elo_pre"],
             neutral=bool(fixture["neutral"]), et_factor=et_factor, penalty_win_prob=penalty_win_prob,
+            blend_weight=blend_weight,
         )
 
         p_market_home_advances = market.p_home + 0.5 * market.p_draw
@@ -273,6 +281,7 @@ def generate_live_predictions(
     reg_strength: float = DEFAULT_REG_STRENGTH,
     et_factor: float = DEFAULT_ET_FACTOR,
     penalty_win_prob: float = DEFAULT_PENALTY_WIN_PROB,
+    blend_weight: float = 1.0,
 ) -> Tuple[List[dict], GoalsModel, pd.Timestamp]:
     """Predict P(advance) for not-yet-played knockout fixtures, model + market.
 
@@ -318,6 +327,7 @@ def generate_live_predictions(
         adv = advance_probability(
             model, home_team, away_team, home_elo_pre, away_elo_pre,
             neutral=neutral, et_factor=et_factor, penalty_win_prob=penalty_win_prob,
+            blend_weight=blend_weight,
         )
 
         record = {

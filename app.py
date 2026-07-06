@@ -23,6 +23,7 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 
+from src.blend import DEFAULT_BLEND_WEIGHT
 from src.elo import compute_elo_ratings
 from src.knockout import advance_probability
 from src.model import fit_poisson_model, predict_match
@@ -77,7 +78,9 @@ def _load_model_and_ratings():
 def _tie_probs(model, current_ratings: dict, home: str, away: str, neutral: bool):
     elo_home = current_ratings.get(home, 1500.0)
     elo_away = current_ratings.get(away, 1500.0)
-    return advance_probability(model, home, away, elo_home, elo_away, neutral=neutral)
+    return advance_probability(
+        model, home, away, elo_home, elo_away, neutral=neutral, blend_weight=DEFAULT_BLEND_WEIGHT
+    )
 
 
 # Confirmed round-of-16 ties and quarterfinals (see src/simulation.py for the
@@ -459,6 +462,16 @@ with tab3:
     with col_b:
         team_b = st.selectbox("Team B (away slot)", teams, index=default_b)
     neutral = st.checkbox("Neutral venue", value=True)
+    use_blend = st.checkbox(
+        "Apply Elo blend correction (recommended)",
+        value=True,
+        help=(
+            "Blends the Poisson goals model with pure Elo to correct its "
+            "conservatism on clear favorites -- see src/blend.py. Uncheck to "
+            "see the pure-Poisson prediction for comparison."
+        ),
+    )
+    blend_weight = DEFAULT_BLEND_WEIGHT if use_blend else 1.0
 
     if team_a == team_b:
         st.warning("Pick two different teams.")
@@ -466,8 +479,10 @@ with tab3:
         elo_a = current_ratings.get(team_a, 1500.0)
         elo_b = current_ratings.get(team_b, 1500.0)
 
-        match_pred = predict_match(model, team_a, team_b, elo_a, elo_b, neutral=neutral)
-        adv = advance_probability(model, team_a, team_b, elo_a, elo_b, neutral=neutral)
+        match_pred = predict_match(model, team_a, team_b, elo_a, elo_b, neutral=neutral, blend_weight=blend_weight)
+        adv = advance_probability(
+            model, team_a, team_b, elo_a, elo_b, neutral=neutral, blend_weight=blend_weight
+        )
 
         st.subheader("If this were a knockout tie")
         col1, col2 = st.columns(2)

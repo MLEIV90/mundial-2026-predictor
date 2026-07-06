@@ -38,6 +38,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from src.blend import blend_outcome_probabilities, elo_match_probabilities
 from src.model import GoalsModel, expected_goal_rates, score_matrix_and_outcomes
 
 DEFAULT_ET_FACTOR = 0.33
@@ -82,6 +83,7 @@ def advance_probability(
     et_factor: float = DEFAULT_ET_FACTOR,
     penalty_win_prob: float = DEFAULT_PENALTY_WIN_PROB,
     max_goals: int = 10,
+    blend_weight: float = 1.0,
 ) -> AdvanceResult:
     """Compute P(team_a advances) and P(team_b advances) from a knockout tie.
 
@@ -109,6 +111,15 @@ def advance_probability(
     max_goals:
         Max goals per side considered when building the regulation and
         extra-time score matrices.
+    blend_weight:
+        Default 1.0 (pure Poisson). If < 1.0, the *regulation-time*
+        outcome probabilities (``p_a_win_90``/``p_draw_90``/``p_b_win_90``)
+        are blended with pure Elo via ``src.blend`` -- a principled
+        correction for the Poisson model's conservatism on clear
+        favorites, not an attempt to match the market (see that module's
+        docstring). Extra time and penalties are deliberately left
+        unblended: they're derived from the Poisson model's own scaled
+        goal rates, which pure Elo has no equivalent for.
 
     Returns
     -------
@@ -124,6 +135,12 @@ def advance_probability(
     _, p_a_win_90, p_draw_90, p_b_win_90 = score_matrix_and_outcomes(
         lambda_a_90, lambda_b_90, model.rho, max_goals=max_goals
     )
+
+    if blend_weight < 1.0:
+        elo_probs = elo_match_probabilities(elo_a, elo_b, model.base_draw_rate, neutral)
+        p_a_win_90, p_draw_90, p_b_win_90 = blend_outcome_probabilities(
+            (p_a_win_90, p_draw_90, p_b_win_90), elo_probs, blend_weight
+        )
 
     lambda_a_et = lambda_a_90 * et_factor
     lambda_b_et = lambda_b_90 * et_factor
