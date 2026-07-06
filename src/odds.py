@@ -231,23 +231,53 @@ def find_world_cup_fixtures(
     return data
 
 
-def find_fixture_id_by_teams(fixtures: List[dict], home_team: str, away_team: str) -> Optional[str]:
-    """Find a fixtureId in a list of fixtures by (case-insensitive) team names.
+# Known team-name spelling differences between results.csv (martj42) and
+# OddsPapi's participant names, keyed by the results.csv spelling (lowercase).
+TEAM_NAME_ALIASES = {
+    "united states": "usa",
+    "dr congo": "congo dr",
+}
 
-    Team-name conventions can differ between data sources (e.g. results.csv
-    vs. OddsPapi's participant names), so this is a best-effort exact
-    match, not a fuzzy one -- check the fixture list manually if it
-    returns None.
+
+def _normalize_team_name(name: str) -> str:
+    lower = name.lower()
+    return TEAM_NAME_ALIASES.get(lower, lower)
+
+
+def find_fixture_id_by_teams(fixtures: List[dict], home_team: str, away_team: str) -> Optional[str]:
+    """Find a fixtureId in a list of fixtures by team names.
+
+    Matches case-insensitively, applying a small known-alias table
+    (``TEAM_NAME_ALIASES``) for spelling differences between results.csv
+    and OddsPapi's participant names (e.g. "United States" vs. "USA").
+    This is still a best-effort match, not a fuzzy one -- check the
+    fixture list manually if it returns None.
     """
-    home_lower = home_team.lower()
-    away_lower = away_team.lower()
+    home_norm = _normalize_team_name(home_team)
+    away_norm = _normalize_team_name(away_team)
     for fixture in fixtures:
         if (
-            fixture.get("participant1Name", "").lower() == home_lower
-            and fixture.get("participant2Name", "").lower() == away_lower
+            _normalize_team_name(fixture.get("participant1Name", "")) == home_norm
+            and _normalize_team_name(fixture.get("participant2Name", "")) == away_norm
         ):
             return fixture.get("fixtureId")
     return None
+
+
+def get_market_probabilities_for_teams(
+    fixtures: List[dict], home_team: str, away_team: str, force_refresh: bool = False
+) -> Optional["MarketOdds"]:
+    """Look up a fixture by team names within an already-fetched fixtures
+    list (see ``find_world_cup_fixtures``) and de-vig its 1X2 odds.
+
+    Returns None if no fixture in ``fixtures`` matches ``home_team``/
+    ``away_team`` (e.g. a team-name spelling mismatch between data
+    sources), so callers can skip gracefully instead of crashing.
+    """
+    fixture_id = find_fixture_id_by_teams(fixtures, home_team, away_team)
+    if fixture_id is None:
+        return None
+    return get_fixture_market_probabilities(fixture_id, force_refresh=force_refresh)
 
 
 def devig_1x2(home_odds: float, draw_odds: float, away_odds: float) -> Tuple[float, float, float]:
