@@ -417,6 +417,39 @@ class MatchPrediction:
     score_matrix: pd.DataFrame  # rows = home goals, columns = away goals
 
 
+def score_matrix_and_outcomes(lambda_home: float, lambda_away: float, rho: float, max_goals: int = 10):
+    """Build the Dixon-Coles corrected, renormalized score matrix for a pair
+    of goal rates, and the outcome probabilities derived from it.
+
+    Returns ``(matrix, p_home_win, p_draw, p_away_win)`` where ``matrix`` is
+    a ``(max_goals + 1, max_goals + 1)`` numpy array (rows = home goals,
+    columns = away goals) that sums to 1. Reused by both ``predict_match``
+    (for full-time scorelines) and ``src.knockout`` (for extra-time
+    scorelines, with scaled-down goal rates).
+    """
+    goals = np.arange(max_goals + 1)
+    pmf_home = poisson.pmf(goals, lambda_home)
+    pmf_away = poisson.pmf(goals, lambda_away)
+    matrix = np.outer(pmf_home, pmf_away)
+
+    home_grid, away_grid = np.meshgrid(goals, goals, indexing="ij")
+    tau = dixon_coles_tau(
+        home_grid,
+        away_grid,
+        np.full_like(matrix, lambda_home),
+        np.full_like(matrix, lambda_away),
+        rho,
+    )
+    matrix = np.clip(matrix * tau, 0.0, None)
+    matrix = matrix / matrix.sum()
+
+    p_home_win = float(matrix[home_grid > away_grid].sum())
+    p_draw = float(matrix[home_grid == away_grid].sum())
+    p_away_win = float(matrix[home_grid < away_grid].sum())
+
+    return matrix, p_home_win, p_draw, p_away_win
+
+
 def predict_match(
     model: GoalsModel,
     home_team: str,
@@ -437,26 +470,11 @@ def predict_match(
         model, home_team, away_team, home_elo_pre, away_elo_pre, neutral
     )
 
-    goals = np.arange(max_goals + 1)
-    pmf_home = poisson.pmf(goals, lambda_home)
-    pmf_away = poisson.pmf(goals, lambda_away)
-    matrix = np.outer(pmf_home, pmf_away)
-
-    home_grid, away_grid = np.meshgrid(goals, goals, indexing="ij")
-    tau = dixon_coles_tau(
-        home_grid,
-        away_grid,
-        np.full_like(matrix, lambda_home),
-        np.full_like(matrix, lambda_away),
-        model.rho,
+    matrix, home_win, draw, away_win = score_matrix_and_outcomes(
+        lambda_home, lambda_away, model.rho, max_goals=max_goals
     )
-    matrix = np.clip(matrix * tau, 0.0, None)
-    matrix = matrix / matrix.sum()
 
-    home_win = float(matrix[home_grid > away_grid].sum())
-    draw = float(matrix[home_grid == away_grid].sum())
-    away_win = float(matrix[home_grid < away_grid].sum())
-
+    goals = np.arange(max_goals + 1)
     home_xg = float(np.sum(matrix.sum(axis=1) * goals))
     away_xg = float(np.sum(matrix.sum(axis=0) * goals))
 
