@@ -91,8 +91,9 @@ def main() -> None:
     save_backtest_json(comparison, summary, str(backtest_path), generated_at=generated_at)
     print(f"  wrote {backtest_path}")
     print(
-        f"  [approx.] model Brier={summary['model_brier']:.4f} vs market Brier={summary['market_brier']:.4f} | "
-        f"model beat market on {summary['n_model_beats_market']}/{summary['n_fixtures']} fixtures"
+        f"  [approx., NOT a fair comparison] model Brier={summary['model_brier']:.4f} vs "
+        f"market Brier={summary['market_brier']:.4f} | model closer on "
+        f"{summary['n_model_beats_market']}/{summary['n_fixtures']} fixtures"
     )
 
     print("Backtesting the model against the market (FAIR 90-minute 1X2 comparison)...")
@@ -104,7 +105,8 @@ def main() -> None:
     print(f"  wrote {backtest_90_path}")
     print(
         f"  [fair] model Brier={summary_90['model_brier']:.4f} vs market Brier={summary_90['market_brier']:.4f} | "
-        f"model beat market on {summary_90['n_model_beats_market']}/{summary_90['n_fixtures']} fixtures"
+        f"model closer on {summary_90['n_model_beats_market']}/{summary_90['n_fixtures']} fixtures "
+        "-- competitive with / on par with the market, not beating it"
     )
     print(
         "  Note: small, in-tournament sample -- read both of the above as an early "

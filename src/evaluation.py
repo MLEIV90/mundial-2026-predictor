@@ -583,22 +583,23 @@ if __name__ == "__main__":
 
     print("\n=== Side by side ===")
     print(
-        f"Advance (approx.)   -- model Brier={summary['model_brier']:.4f}  "
+        f"Advance (approx., NOT fair) -- model Brier={summary['model_brier']:.4f}  "
         f"market Brier={summary['market_brier']:.4f}  |  "
         f"model log loss={summary['model_log_loss']:.4f}  "
         f"market log loss={summary['market_log_loss']:.4f}  |  "
-        f"model beat market on {summary['n_model_beats_market']}/{summary['n_fixtures']}"
+        f"model closer on {summary['n_model_beats_market']}/{summary['n_fixtures']}"
     )
     print(
-        f"90-minute (fair)    -- model Brier={summary_90['model_brier']:.4f}  "
+        f"90-minute (fair)            -- model Brier={summary_90['model_brier']:.4f}  "
         f"market Brier={summary_90['market_brier']:.4f}  |  "
         f"model log loss={summary_90['model_log_loss']:.4f}  "
         f"market log loss={summary_90['market_log_loss']:.4f}  |  "
-        f"model beat market on {summary_90['n_model_beats_market']}/{summary_90['n_fixtures']}"
+        f"model closer on {summary_90['n_model_beats_market']}/{summary_90['n_fixtures']}"
     )
     print(
-        "\nNote: small, in-tournament sample (n < 25 fixtures either way) -- "
-        "read as an early signal, not a claim of long-run edge over the market."
+        "\nNote: small, in-tournament sample (n < 25 fixtures either way) -- read both as "
+        "an early signal. On the fair comparison, the model is competitive with / roughly "
+        "on par with the market -- not a claim of beating it or of long-run edge."
     )
 
     unplayed = find_unplayed_fixtures_in_window(matches, ROUND_OF_16_START_DATE, ROUND_OF_16_END_DATE)

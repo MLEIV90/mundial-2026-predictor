@@ -42,13 +42,31 @@ st.set_page_config(page_title="Mundial 2026 Predictor", page_icon="⚽", layout=
 
 st.markdown(
     """
-    <style>
-    [data-testid="stMetricValue"] { font-size: 1.85rem; font-weight: 700; }
-    [data-testid="stMetricLabel"] { font-weight: 500; color: #52514e; }
-    div[data-testid="stVerticalBlockBorderWrapper"] { border-radius: 10px; }
-    h1, h2, h3 { letter-spacing: -0.01em; }
-    </style>
-    """,
+<style>
+[data-testid="stMetricValue"] { font-size: 1.85rem; font-weight: 700; }
+[data-testid="stMetricLabel"] { font-weight: 500; color: #52514e; }
+div[data-testid="stVerticalBlockBorderWrapper"] { border-radius: 12px; box-shadow: 0 1px 3px rgba(11,11,11,0.06); }
+h1, h2, h3 { letter-spacing: -0.01em; }
+.stTabs [data-baseweb="tab-list"] { gap: 4px; }
+.stTabs [data-baseweb="tab"] { font-weight: 600; }
+.app-banner {
+  background: linear-gradient(135deg, rgba(42,120,214,0.10) 0%, rgba(42,120,214,0.015) 65%);
+  border: 1px solid rgba(42,120,214,0.14);
+  border-radius: 16px;
+  padding: 22px 28px;
+  margin-bottom: 20px;
+}
+.app-banner-title { font-size: 2.1rem; font-weight: 800; letter-spacing: -0.02em; color: #0b0b0b; line-height: 1.2; }
+.app-banner-subtitle { font-size: 0.95rem; color: #52514e; margin-top: 6px; }
+</style>
+""",
+    unsafe_allow_html=True,
+)
+
+st.markdown(
+    '<div class="app-banner"><div class="app-banner-title">⚽ Mundial 2026 Predictor</div>'
+    '<div class="app-banner-subtitle">A Dixon-Coles goals model with Elo-adjusted team strength, '
+    "benchmarked against the betting market.</div></div>",
     unsafe_allow_html=True,
 )
 
@@ -168,7 +186,7 @@ def _decided_card_html(x: float, y: float, label: str, home: str, away: str, p_h
     home_color = COLOR_BLUE if home_fav else COLOR_GRAY
     away_color = COLOR_BLUE if not home_fav else COLOR_GRAY
     return f"""
-    <div class="bx-card" style="left:{x:.1f}px; top:{y - CARD_H / 2:.1f}px; width:{CARD_W}px; height:{CARD_H}px;">
+    <div class="bx-card bx-has-fav" style="left:{x:.1f}px; top:{y - CARD_H / 2:.1f}px; width:{CARD_W}px; height:{CARD_H}px;">
       <div class="bx-label">{label}</div>
       <div class="{home_cls}"><span>{home}</span><span class="bx-pct">{p_home:.0%}</span></div>
       <div class="{away_cls}"><span>{away}</span><span class="bx-pct">{p_away:.0%}</span></div>
@@ -192,24 +210,30 @@ def _pending_card_html(x: float, y: float, label: str, line1: str, line2: str) -
 
 BRACKET_CSS = f"""
 <style>
-.bx-wrap {{ overflow-x: auto; padding: 8px 4px 16px 4px; }}
-.bx-headers {{ display: flex; gap: {COL_GAP}px; margin-bottom: 10px; min-width: max-content; }}
-.bx-headers > div {{ width: {CARD_W}px; font-weight: 600; font-size: 0.85rem; color: {COLOR_TEXT_SECONDARY};
-  text-transform: uppercase; letter-spacing: 0.04em; }}
+.bx-wrap {{ overflow-x: auto; padding: 8px 4px 20px 4px; }}
+.bx-headers {{ display: flex; gap: {COL_GAP}px; margin-bottom: 12px; min-width: max-content; }}
+.bx-headers > div {{ width: {CARD_W}px; font-weight: 700; font-size: 0.8rem; color: {COLOR_BLUE};
+  text-transform: uppercase; letter-spacing: 0.06em; padding-left: 2px; }}
 .bx-canvas {{ position: relative; min-width: max-content; }}
-.bx-card {{ position: absolute; background: #ffffff; border: 1px solid rgba(11,11,11,0.10);
-  border-radius: 8px; padding: 6px 10px; box-shadow: 0 1px 2px rgba(11,11,11,0.04); box-sizing: border-box; }}
-.bx-card.bx-pending {{ background: #f9f9f7; border: 1px dashed #c3c2b7; box-shadow: none; }}
-.bx-label {{ font-size: 0.7rem; font-weight: 600; color: {COLOR_TEXT_SECONDARY}; margin-bottom: 2px; }}
-.bx-team {{ display: flex; justify-content: space-between; font-size: 0.85rem; line-height: 1.35; color: #0b0b0b; }}
+.bx-col-bg {{ position: absolute; top: -8px; background: rgba(42,120,214,0.025);
+  border-radius: 14px; }}
+.bx-card {{ position: absolute; background: #ffffff; border: 1px solid rgba(11,11,11,0.08);
+  border-left: 3px solid {COLOR_GRAY}; border-radius: 9px; padding: 7px 11px;
+  box-shadow: 0 2px 5px rgba(11,11,11,0.06); box-sizing: border-box; transition: box-shadow 0.15s ease; }}
+.bx-card.bx-has-fav {{ border-left: 3px solid {COLOR_BLUE}; }}
+.bx-card.bx-pending {{ background: #f9f9f7; border: 1px dashed #c3c2b7; border-left: 3px dashed #c3c2b7;
+  box-shadow: none; }}
+.bx-label {{ font-size: 0.68rem; font-weight: 700; color: {COLOR_TEXT_SECONDARY}; margin-bottom: 3px;
+  text-transform: uppercase; letter-spacing: 0.03em; }}
+.bx-team {{ display: flex; justify-content: space-between; font-size: 0.87rem; line-height: 1.4; color: #0b0b0b; }}
 .bx-team.bx-fav {{ font-weight: 700; color: {COLOR_BLUE}; }}
 .bx-team.bx-tbd {{ color: #898781; font-style: italic; font-weight: 400; }}
-.bx-pct {{ font-variant-numeric: tabular-nums; }}
-.bx-bar {{ margin-top: 4px; height: 4px; border-radius: 2px; overflow: hidden; display: flex; }}
+.bx-pct {{ font-variant-numeric: tabular-nums; font-weight: 600; }}
+.bx-bar {{ margin-top: 5px; height: 5px; border-radius: 3px; overflow: hidden; display: flex; }}
 .bx-bar-seg {{ height: 100%; }}
 .bx-bar-seg:first-child {{ margin-right: 2px; }}
-.bx-conn-h {{ position: absolute; height: 2px; background: #c3c2b7; }}
-.bx-conn-v {{ position: absolute; width: 2px; background: #c3c2b7; }}
+.bx-conn-h {{ position: absolute; height: 2.5px; background: #b7b6ac; border-radius: 2px; }}
+.bx-conn-v {{ position: absolute; width: 2.5px; background: #b7b6ac; border-radius: 2px; }}
 </style>
 """
 
@@ -231,6 +255,14 @@ def render_bracket(model, current_ratings: dict) -> None:
         "</div>"
     )
     parts.append(f'<div class="bx-canvas" style="height:{geo["total_h"]:.0f}px; width:{geo["total_w"]:.0f}px;">')
+
+    # Subtle background band per round column, added first so cards and
+    # connectors (added after) stack visually on top of them.
+    band_h = geo["total_h"] + 16
+    for x in col_x:
+        parts.append(
+            f'<div class="bx-col-bg" style="left:{x - 10:.1f}px; width:{CARD_W + 20}px; height:{band_h:.0f}px;"></div>'
+        )
 
     # Round of 16
     for i, (home, away, neutral) in enumerate(R16_TIES):
@@ -289,12 +321,6 @@ backtest_data = _load_json("backtest.json")
 backtest_90_data = _load_json("backtest_90min.json")
 sim_data = _load_json("simulation.json")
 
-st.title("⚽ Mundial 2026 Predictor")
-st.caption(
-    "A Dixon-Coles goals model with Elo-adjusted team strength, benchmarked "
-    "against the betting market."
-)
-
 kpi1, kpi2, kpi3 = st.columns(3)
 if sim_data is not None and sim_data["results"]:
     top_row = max(sim_data["results"], key=lambda r: r["p_champion"])
@@ -304,13 +330,17 @@ else:
 
 if backtest_90_data is not None:
     s = backtest_90_data["summary"]
-    verdict = "ahead of" if s["model_brier"] < s["market_brier"] else "behind"
+    diff = abs(s["model_brier"] - s["market_brier"])
     kpi2.metric(
         "Model vs market (fair, 90')",
         f"{s['model_brier']:.4f}",
-        f"{verdict} market by {abs(s['model_brier'] - s['market_brier']):.4f}",
+        f"competitive with market (Δ {diff:.4f})",
         delta_color="off",
-        help="Brier score on the 90-minute 1X2 result -- the fair, apples-to-apples comparison. See the Track Record tab.",
+        help=(
+            "Brier score on the 90-minute 1X2 result -- the fair, apples-to-apples "
+            "comparison. On this small in-tournament sample the model is roughly on "
+            "par with Pinnacle's closing line, not beating it. See the Track Record tab."
+        ),
     )
 else:
     kpi2.metric("Model vs market", "n/a")
@@ -406,7 +436,9 @@ with tab2:
     st.caption(
         "Model vs market on exactly what the market prices pre-match -- the 90-minute "
         "result (home win / draw / away win) -- with no extra-time/penalty logic on "
-        "either side."
+        "either side. **On this sample the model is competitive with / roughly on par "
+        "with Pinnacle's closing line -- this is not a case of the model beating the "
+        "market.**"
     )
 
     if backtest_90_data is None:
@@ -427,12 +459,13 @@ with tab2:
             delta_color="inverse",
         )
         col3.metric(
-            "Beat the market",
+            "Fixtures model was closer on",
             f"{summary_90['n_model_beats_market']} / {summary_90['n_fixtures']}",
         )
         st.caption(
             f"Market Brier: {summary_90['market_brier']:.4f} · "
-            f"Market log loss: {summary_90['market_log_loss']:.4f}"
+            f"Market log loss: {summary_90['market_log_loss']:.4f} · "
+            "small in-tournament sample, not a claim of long-run edge."
         )
 
         with st.expander("Fixture-by-fixture (90-minute)"):
@@ -449,7 +482,7 @@ with tab2:
                     "market_p_home": "Market P(Home)",
                     "market_p_draw": "Market P(Draw)",
                     "market_p_away": "Market P(Away)",
-                    "model_beat_market": "Model beat market",
+                    "model_beat_market": "Model closer",
                 }
             )
             for col in ["Model P(Home)", "Model P(Draw)", "Model P(Away)", "Market P(Home)", "Market P(Draw)", "Market P(Away)"]:
@@ -458,7 +491,7 @@ with tab2:
                 "Date", "Home", "Away", "Result",
                 "Model P(Home)", "Model P(Draw)", "Model P(Away)",
                 "Market P(Home)", "Market P(Draw)", "Market P(Away)",
-                "Model beat market",
+                "Model closer",
             ]
             st.dataframe(fixtures_90_df[display_cols_90], hide_index=True, use_container_width=True)
 
@@ -491,7 +524,7 @@ with tab2:
             delta_color="inverse",
         )
         col3.metric(
-            "Beat the market",
+            "Fixtures model was closer on",
             f"{summary['n_model_beats_market']} / {summary['n_fixtures']}",
         )
         st.caption(f"Market Brier: {summary['market_brier']:.4f} · Market log loss: {summary['market_log_loss']:.4f}")
@@ -506,12 +539,12 @@ with tab2:
                     "winner": "Advanced",
                     "p_model_home_advances": "Model P(Home)",
                     "p_market_home_advances": "Market P(Home)",
-                    "model_beat_market": "Model beat market",
+                    "model_beat_market": "Model closer",
                 }
             )
             fixtures_df["Model P(Home)"] = fixtures_df["Model P(Home)"].map(lambda v: f"{v:.1%}")
             fixtures_df["Market P(Home)"] = fixtures_df["Market P(Home)"].map(lambda v: f"{v:.1%}")
-            display_cols = ["Date", "Home", "Away", "Advanced", "Model P(Home)", "Market P(Home)", "Model beat market"]
+            display_cols = ["Date", "Home", "Away", "Advanced", "Model P(Home)", "Market P(Home)", "Model closer"]
             st.dataframe(fixtures_df[display_cols], hide_index=True, use_container_width=True)
 
 # --------------------------------------------------------------------------
