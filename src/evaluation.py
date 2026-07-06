@@ -147,7 +147,11 @@ def backtest_knockout_fixtures(
 
     window = df_elo[(df_elo["date"] >= start_date) & (df_elo["date"] <= end_date)].sort_values("date")
 
-    finished_fixtures = find_world_cup_fixtures(status_id=2)  # cached after first call
+    # The *list* of which fixtures count as finished changes as the tournament
+    # progresses, so it's force-refreshed here (one cheap call) even though
+    # each fixture's own odds lookup stays fully cached -- otherwise a fixture
+    # that finished after the list was last cached would be missed entirely.
+    finished_fixtures = find_world_cup_fixtures(status_id=2, force_refresh=True)
 
     model_cache: Dict[pd.Timestamp, GoalsModel] = {}
     rows: List[dict] = []
@@ -225,6 +229,27 @@ def backtest_knockout_fixtures(
     return result_df, summary
 
 
+def save_backtest_json(
+    comparison: pd.DataFrame, summary: Dict[str, float], path: str, generated_at: Optional[str] = None
+) -> None:
+    """Write the backtest comparison table + summary to ``path`` as JSON."""
+    comparison = comparison.copy()
+    comparison["date"] = comparison["date"].astype(str)
+    # Route through pandas' own JSON serializer first: it correctly converts
+    # numpy int64/float64/bool_ dtypes to native JSON types, which plain
+    # json.dumps cannot do on its own.
+    fixtures = json.loads(comparison.to_json(orient="records"))
+
+    payload = {
+        "generated_at": generated_at or datetime.now(timezone.utc).isoformat(),
+        "summary": summary,
+        "fixtures": fixtures,
+    }
+    out_path = Path(path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+
 def find_unplayed_fixtures_in_window(df: pd.DataFrame, start_date: str, end_date: str) -> pd.DataFrame:
     """Fixtures with a missing score (not yet played) within a date window."""
     window = df[(df["date"] >= pd.Timestamp(start_date)) & (df["date"] <= pd.Timestamp(end_date))]
@@ -264,7 +289,10 @@ def generate_live_predictions(
     as_of_date = df_elo["date"].max() + pd.Timedelta(days=1)
     model = fit_poisson_model(df_elo, as_of_date=as_of_date, half_life_days=half_life_days)
 
-    odds_fixtures = find_world_cup_fixtures()  # all statuses, cached after first call
+    # Force-refreshed for the same reason as in backtest_knockout_fixtures:
+    # this list (which fixtures exist and their status) goes stale as the
+    # tournament progresses, even though each fixture's own odds stay cached.
+    odds_fixtures = find_world_cup_fixtures(force_refresh=True)
 
     records: List[dict] = []
     for _, fixture in fixtures_to_predict.iterrows():

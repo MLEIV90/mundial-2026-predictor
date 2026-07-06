@@ -1,0 +1,214 @@
+{
+  "generated_at": "2026-07-06T13:05:06.196683+00:00",
+  "summary": {
+    "n_fixtures": 20,
+    "n_skipped": 0,
+    "model_brier": 0.15219821959344032,
+    "market_brier": 0.15292195431940758,
+    "model_log_loss": 0.47524824354982564,
+    "market_log_loss": 0.4821077270322407,
+    "n_model_beats_market": 9
+  },
+  "fixtures": [
+    {
+      "date": "2026-06-28",
+      "home_team": "South Africa",
+      "away_team": "Canada",
+      "winner": "Canada",
+      "p_model_home_advances": 0.3785314639,
+      "p_market_home_advances": 0.3372978181,
+      "y_home_advanced": 0,
+      "model_beat_market": false
+    },
+    {
+      "date": "2026-06-29",
+      "home_team": "Brazil",
+      "away_team": "Japan",
+      "winner": "Brazil",
+      "p_model_home_advances": 0.5239995342,
+      "p_market_home_advances": 0.6810187038,
+      "y_home_advanced": 1,
+      "model_beat_market": false
+    },
+    {
+      "date": "2026-06-29",
+      "home_team": "Germany",
+      "away_team": "Paraguay",
+      "winner": "Paraguay",
+      "p_model_home_advances": 0.6801868194,
+      "p_market_home_advances": 0.8179018599,
+      "y_home_advanced": 0,
+      "model_beat_market": true
+    },
+    {
+      "date": "2026-06-29",
+      "home_team": "Netherlands",
+      "away_team": "Morocco",
+      "winner": "Morocco",
+      "p_model_home_advances": 0.480750261,
+      "p_market_home_advances": 0.5500762296,
+      "y_home_advanced": 0,
+      "model_beat_market": true
+    },
+    {
+      "date": "2026-06-30",
+      "home_team": "Ivory Coast",
+      "away_team": "Norway",
+      "winner": "Norway",
+      "p_model_home_advances": 0.3974265955,
+      "p_market_home_advances": 0.4005861343,
+      "y_home_advanced": 0,
+      "model_beat_market": true
+    },
+    {
+      "date": "2026-06-30",
+      "home_team": "France",
+      "away_team": "Sweden",
+      "winner": "France",
+      "p_model_home_advances": 0.8604467506,
+      "p_market_home_advances": 0.8296228704,
+      "y_home_advanced": 1,
+      "model_beat_market": true
+    },
+    {
+      "date": "2026-06-30",
+      "home_team": "Mexico",
+      "away_team": "Ecuador",
+      "winner": "Mexico",
+      "p_model_home_advances": 0.5628789205,
+      "p_market_home_advances": 0.5853777808,
+      "y_home_advanced": 1,
+      "model_beat_market": false
+    },
+    {
+      "date": "2026-07-01",
+      "home_team": "Belgium",
+      "away_team": "Senegal",
+      "winner": "Belgium",
+      "p_model_home_advances": 0.5473915322,
+      "p_market_home_advances": 0.6365764226,
+      "y_home_advanced": 1,
+      "model_beat_market": false
+    },
+    {
+      "date": "2026-07-01",
+      "home_team": "United States",
+      "away_team": "Bosnia and Herzegovina",
+      "winner": "United States",
+      "p_model_home_advances": 0.7771692961,
+      "p_market_home_advances": 0.7970257316,
+      "y_home_advanced": 1,
+      "model_beat_market": false
+    },
+    {
+      "date": "2026-07-01",
+      "home_team": "England",
+      "away_team": "DR Congo",
+      "winner": "England",
+      "p_model_home_advances": 0.6967901475,
+      "p_market_home_advances": 0.8348641143,
+      "y_home_advanced": 1,
+      "model_beat_market": false
+    },
+    {
+      "date": "2026-07-02",
+      "home_team": "Spain",
+      "away_team": "Austria",
+      "winner": "Spain",
+      "p_model_home_advances": 0.7765276081,
+      "p_market_home_advances": 0.8082528696,
+      "y_home_advanced": 1,
+      "model_beat_market": false
+    },
+    {
+      "date": "2026-07-02",
+      "home_team": "Portugal",
+      "away_team": "Croatia",
+      "winner": "Portugal",
+      "p_model_home_advances": 0.6870316593,
+      "p_market_home_advances": 0.7027634907,
+      "y_home_advanced": 1,
+      "model_beat_market": false
+    },
+    {
+      "date": "2026-07-02",
+      "home_team": "Switzerland",
+      "away_team": "Algeria",
+      "winner": "Switzerland",
+      "p_model_home_advances": 0.5855432192,
+      "p_market_home_advances": 0.6299936336,
+      "y_home_advanced": 1,
+      "model_beat_market": false
+    },
+    {
+      "date": "2026-07-03",
+      "home_team": "Australia",
+      "away_team": "Egypt",
+      "winner": "Egypt",
+      "p_model_home_advances": 0.552427606,
+      "p_market_home_advances": 0.4377748371,
+      "y_home_advanced": 0,
+      "model_beat_market": false
+    },
+    {
+      "date": "2026-07-03",
+      "home_team": "Argentina",
+      "away_team": "Cape Verde",
+      "winner": "Argentina",
+      "p_model_home_advances": 0.9360643869,
+      "p_market_home_advances": 0.8954572172,
+      "y_home_advanced": 1,
+      "model_beat_market": true
+    },
+    {
+      "date": "2026-07-03",
+      "home_team": "Colombia",
+      "away_team": "Ghana",
+      "winner": "Colombia",
+      "p_model_home_advances": 0.8742770427,
+      "p_market_home_advances": 0.7731723708,
+      "y_home_advanced": 1,
+      "model_beat_market": true
+    },
+    {
+      "date": "2026-07-04",
+      "home_team": "Canada",
+      "away_team": "Morocco",
+      "winner": "Morocco",
+      "p_model_home_advances": 0.3125556739,
+      "p_market_home_advances": 0.3281155898,
+      "y_home_advanced": 0,
+      "model_beat_market": true
+    },
+    {
+      "date": "2026-07-04",
+      "home_team": "Paraguay",
+      "away_team": "France",
+      "winner": "France",
+      "p_model_home_advances": 0.2611625078,
+      "p_market_home_advances": 0.129787234,
+      "y_home_advanced": 0,
+      "model_beat_market": false
+    },
+    {
+      "date": "2026-07-05",
+      "home_team": "Brazil",
+      "away_team": "Norway",
+      "winner": "Norway",
+      "p_model_home_advances": 0.5234665632,
+      "p_market_home_advances": 0.6757989269,
+      "y_home_advanced": 0,
+      "model_beat_market": true
+    },
+    {
+      "date": "2026-07-05",
+      "home_team": "Mexico",
+      "away_team": "England",
+      "winner": "England",
+      "p_model_home_advances": 0.4251317447,
+      "p_market_home_advances": 0.4606102809,
+      "y_home_advanced": 0,
+      "model_beat_market": true
+    }
+  ]
+}

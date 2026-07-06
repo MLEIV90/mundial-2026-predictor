@@ -1,5 +1,6 @@
 # Data
-data/
+data/*
+!data/app/
 
 # Python
 __pycache__/

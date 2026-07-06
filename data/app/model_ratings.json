@@ -1,0 +1,126 @@
+{
+  "generated_at": "2026-07-06T13:05:06.196683+00:00",
+  "as_of_date": "2026-07-05",
+  "ratings": [
+    {
+      "team": "Argentina",
+      "elo": 2227.7823702834
+    },
+    {
+      "team": "Spain",
+      "elo": 2224.330420943
+    },
+    {
+      "team": "France",
+      "elo": 2206.7922653151
+    },
+    {
+      "team": "England",
+      "elo": 2150.0524148731
+    },
+    {
+      "team": "Colombia",
+      "elo": 2093.0923113811
+    },
+    {
+      "team": "Portugal",
+      "elo": 2078.2422053322
+    },
+    {
+      "team": "Norway",
+      "elo": 2061.7354535641
+    },
+    {
+      "team": "Brazil",
+      "elo": 2057.2687693821
+    },
+    {
+      "team": "Morocco",
+      "elo": 2056.0103601805
+    },
+    {
+      "team": "Netherlands",
+      "elo": 2045.3941718287
+    },
+    {
+      "team": "Switzerland",
+      "elo": 2017.5884054923
+    },
+    {
+      "team": "Mexico",
+      "elo": 2013.8661844898
+    },
+    {
+      "team": "Germany",
+      "elo": 1989.3119499482
+    },
+    {
+      "team": "Belgium",
+      "elo": 1988.3474540351
+    },
+    {
+      "team": "Japan",
+      "elo": 1973.1039488546
+    },
+    {
+      "team": "Ecuador",
+      "elo": 1964.20739105
+    },
+    {
+      "team": "Croatia",
+      "elo": 1946.8328784417
+    },
+    {
+      "team": "Italy",
+      "elo": 1928.6705974553
+    },
+    {
+      "team": "Denmark",
+      "elo": 1928.5787767133
+    },
+    {
+      "team": "Uruguay",
+      "elo": 1924.7398505965
+    },
+    {
+      "team": "Turkey",
+      "elo": 1923.0358034923
+    },
+    {
+      "team": "Australia",
+      "elo": 1908.0112646574
+    },
+    {
+      "team": "Paraguay",
+      "elo": 1900.858431654
+    },
+    {
+      "team": "United States",
+      "elo": 1893.2951734344
+    },
+    {
+      "team": "Austria",
+      "elo": 1889.0566511438
+    },
+    {
+      "team": "Iran",
+      "elo": 1886.2946810079
+    },
+    {
+      "team": "Nigeria",
+      "elo": 1882.325115006
+    },
+    {
+      "team": "Senegal",
+      "elo": 1880.1975090776
+    },
+    {
+      "team": "Yugoslavia",
+      "elo": 1873.0043980561
+    },
+    {
+      "team": "Egypt",
+      "elo": 1864.6685806787
+    }
+  ]
+}
