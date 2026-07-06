@@ -286,6 +286,7 @@ def render_bracket(model, current_ratings: dict) -> None:
 ratings_data = _load_json("model_ratings.json")
 live_data = _load_json("live_predictions.json")
 backtest_data = _load_json("backtest.json")
+backtest_90_data = _load_json("backtest_90min.json")
 sim_data = _load_json("simulation.json")
 
 st.title("⚽ Mundial 2026 Predictor")
@@ -301,14 +302,15 @@ if sim_data is not None and sim_data["results"]:
 else:
     kpi1.metric("Title favorite", "n/a")
 
-if backtest_data is not None:
-    s = backtest_data["summary"]
+if backtest_90_data is not None:
+    s = backtest_90_data["summary"]
     verdict = "ahead of" if s["model_brier"] < s["market_brier"] else "behind"
     kpi2.metric(
-        "Model vs market (Brier)",
+        "Model vs market (fair, 90')",
         f"{s['model_brier']:.4f}",
         f"{verdict} market by {abs(s['model_brier'] - s['market_brier']):.4f}",
         delta_color="off",
+        help="Brier score on the 90-minute 1X2 result -- the fair, apples-to-apples comparison. See the Track Record tab.",
     )
 else:
     kpi2.metric("Model vs market", "n/a")
@@ -394,17 +396,86 @@ with tab1:
 # --------------------------------------------------------------------------
 with tab2:
     st.header("Backtest: Model vs Market")
+    st.info(
+        "\U0001f4cb **Preliminary, in-tournament backtest.** Small sample (fewer than 25 "
+        "knockout fixtures played so far) -- read every number on this tab as an early "
+        "signal, not a claim of long-run edge over the market."
+    )
+
+    st.subheader("Fair comparison: 90-minute 1X2")
+    st.caption(
+        "Model vs market on exactly what the market prices pre-match -- the 90-minute "
+        "result (home win / draw / away win) -- with no extra-time/penalty logic on "
+        "either side."
+    )
+
+    if backtest_90_data is None:
+        st.warning("No 90-minute backtest found. Run `python scripts/update_data.py` first.")
+    else:
+        summary_90 = backtest_90_data["summary"]
+        col1, col2, col3 = st.columns(3)
+        col1.metric(
+            "Brier score (lower is better)",
+            f"{summary_90['model_brier']:.4f}",
+            delta=f"{summary_90['model_brier'] - summary_90['market_brier']:+.4f} vs market",
+            delta_color="inverse",
+        )
+        col2.metric(
+            "Log loss (lower is better)",
+            f"{summary_90['model_log_loss']:.4f}",
+            delta=f"{summary_90['model_log_loss'] - summary_90['market_log_loss']:+.4f} vs market",
+            delta_color="inverse",
+        )
+        col3.metric(
+            "Beat the market",
+            f"{summary_90['n_model_beats_market']} / {summary_90['n_fixtures']}",
+        )
+        st.caption(
+            f"Market Brier: {summary_90['market_brier']:.4f} · "
+            f"Market log loss: {summary_90['market_log_loss']:.4f}"
+        )
+
+        with st.expander("Fixture-by-fixture (90-minute)"):
+            fixtures_90_df = pd.DataFrame(backtest_90_data["fixtures"])
+            fixtures_90_df = fixtures_90_df.rename(
+                columns={
+                    "date": "Date",
+                    "home_team": "Home",
+                    "away_team": "Away",
+                    "result": "Result",
+                    "model_p_home": "Model P(Home)",
+                    "model_p_draw": "Model P(Draw)",
+                    "model_p_away": "Model P(Away)",
+                    "market_p_home": "Market P(Home)",
+                    "market_p_draw": "Market P(Draw)",
+                    "market_p_away": "Market P(Away)",
+                    "model_beat_market": "Model beat market",
+                }
+            )
+            for col in ["Model P(Home)", "Model P(Draw)", "Model P(Away)", "Market P(Home)", "Market P(Draw)", "Market P(Away)"]:
+                fixtures_90_df[col] = fixtures_90_df[col].map(lambda v: f"{v:.1%}")
+            display_cols_90 = [
+                "Date", "Home", "Away", "Result",
+                "Model P(Home)", "Model P(Draw)", "Model P(Away)",
+                "Market P(Home)", "Market P(Draw)", "Market P(Away)",
+                "Model beat market",
+            ]
+            st.dataframe(fixtures_90_df[display_cols_90], hide_index=True, use_container_width=True)
+
+    st.divider()
+    st.subheader("Approximation: knockout advancement")
+    st.caption(
+        "⚠️ **Not an apples-to-apples comparison** -- the model runs its full "
+        "extra-time/penalty machinery, while the market side is only ever the crude "
+        "P(win) + 0.5*P(draw) coin-flip approximation, since there's no real market for "
+        "\"wins the tie.\" Part of any model edge below could simply be the model doing "
+        "more work on a question the market was never asked. Kept for reference "
+        "alongside the fair comparison above, not in place of it."
+    )
 
     if backtest_data is None:
         st.warning("No backtest found. Run `python scripts/update_data.py` first.")
     else:
-        st.info(
-            "\U0001f4cb **Preliminary, in-tournament backtest.** This covers only the "
-            f"{backtest_data['summary']['n_fixtures']} knockout fixtures played so far "
-            "(Round of 32 onward). Small sample -- read the numbers as an early signal, "
-            "not a final verdict."
-        )
-
         summary = backtest_data["summary"]
         col1, col2, col3 = st.columns(3)
         col1.metric(
@@ -425,23 +496,23 @@ with tab2:
         )
         st.caption(f"Market Brier: {summary['market_brier']:.4f} · Market log loss: {summary['market_log_loss']:.4f}")
 
-        st.subheader("Fixture-by-fixture")
-        fixtures_df = pd.DataFrame(backtest_data["fixtures"])
-        fixtures_df = fixtures_df.rename(
-            columns={
-                "date": "Date",
-                "home_team": "Home",
-                "away_team": "Away",
-                "winner": "Advanced",
-                "p_model_home_advances": "Model P(Home)",
-                "p_market_home_advances": "Market P(Home)",
-                "model_beat_market": "Model beat market",
-            }
-        )
-        fixtures_df["Model P(Home)"] = fixtures_df["Model P(Home)"].map(lambda v: f"{v:.1%}")
-        fixtures_df["Market P(Home)"] = fixtures_df["Market P(Home)"].map(lambda v: f"{v:.1%}")
-        display_cols = ["Date", "Home", "Away", "Advanced", "Model P(Home)", "Market P(Home)", "Model beat market"]
-        st.dataframe(fixtures_df[display_cols], hide_index=True, use_container_width=True)
+        with st.expander("Fixture-by-fixture (advance approximation)"):
+            fixtures_df = pd.DataFrame(backtest_data["fixtures"])
+            fixtures_df = fixtures_df.rename(
+                columns={
+                    "date": "Date",
+                    "home_team": "Home",
+                    "away_team": "Away",
+                    "winner": "Advanced",
+                    "p_model_home_advances": "Model P(Home)",
+                    "p_market_home_advances": "Market P(Home)",
+                    "model_beat_market": "Model beat market",
+                }
+            )
+            fixtures_df["Model P(Home)"] = fixtures_df["Model P(Home)"].map(lambda v: f"{v:.1%}")
+            fixtures_df["Market P(Home)"] = fixtures_df["Market P(Home)"].map(lambda v: f"{v:.1%}")
+            display_cols = ["Date", "Home", "Away", "Advanced", "Model P(Home)", "Market P(Home)", "Model beat market"]
+            st.dataframe(fixtures_df[display_cols], hide_index=True, use_container_width=True)
 
 # --------------------------------------------------------------------------
 # Tab 3: Match Predictor

@@ -12,7 +12,8 @@ requests no matter how many times it's opened.
 
 Writes:
     data/app/model_ratings.json    -- current Elo top teams
-    data/app/backtest.json         -- model vs market on played knockout fixtures
+    data/app/backtest.json         -- model vs market, "advance" APPROXIMATION (see src/evaluation.py)
+    data/app/backtest_90min.json   -- model vs market, FAIR 90-minute 1X2 comparison
     data/app/live_predictions.json -- model vs market on upcoming knockout fixtures
     data/app/simulation.json       -- Monte-Carlo bracket simulation (P(reach QF/SF/final/champion))
 
@@ -36,6 +37,7 @@ from src.evaluation import (
     KNOCKOUT_START_DATE,
     ROUND_OF_16_END_DATE,
     ROUND_OF_16_START_DATE,
+    backtest_90min_fixtures,
     backtest_knockout_fixtures,
     find_unplayed_fixtures_in_window,
     generate_live_predictions,
@@ -79,7 +81,7 @@ def main() -> None:
     )
     print(f"  wrote {ratings_path}")
 
-    print("Backtesting the model against the market on already-played knockout fixtures...")
+    print("Backtesting the model against the market ('advance' APPROXIMATION -- see src/evaluation.py)...")
     print("(refits the goals model per fixture date -- this takes a couple of minutes)")
     print(f"(using blend_weight={DEFAULT_BLEND_WEIGHT} -- see src/blend.py for why)")
     comparison, summary = backtest_knockout_fixtures(
@@ -89,8 +91,24 @@ def main() -> None:
     save_backtest_json(comparison, summary, str(backtest_path), generated_at=generated_at)
     print(f"  wrote {backtest_path}")
     print(
-        f"  model Brier={summary['model_brier']:.4f} vs market Brier={summary['market_brier']:.4f} | "
+        f"  [approx.] model Brier={summary['model_brier']:.4f} vs market Brier={summary['market_brier']:.4f} | "
         f"model beat market on {summary['n_model_beats_market']}/{summary['n_fixtures']} fixtures"
+    )
+
+    print("Backtesting the model against the market (FAIR 90-minute 1X2 comparison)...")
+    comparison_90, summary_90 = backtest_90min_fixtures(
+        matches, start_date=KNOCKOUT_START_DATE, blend_weight=DEFAULT_BLEND_WEIGHT
+    )
+    backtest_90_path = APP_DATA_DIR / "backtest_90min.json"
+    save_backtest_json(comparison_90, summary_90, str(backtest_90_path), generated_at=generated_at)
+    print(f"  wrote {backtest_90_path}")
+    print(
+        f"  [fair] model Brier={summary_90['model_brier']:.4f} vs market Brier={summary_90['market_brier']:.4f} | "
+        f"model beat market on {summary_90['n_model_beats_market']}/{summary_90['n_fixtures']} fixtures"
+    )
+    print(
+        "  Note: small, in-tournament sample -- read both of the above as an early "
+        "signal, not a claim of long-run edge over the market."
     )
 
     print("Generating live predictions for upcoming round-of-16 fixtures...")

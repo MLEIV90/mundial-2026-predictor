@@ -44,6 +44,40 @@ error between predicted probability and outcome (bounded in [0, 1]),
 ``log_loss`` is the mean negative log-likelihood of the outcome under
 the predicted probability (unbounded, penalizes confident wrong calls
 much more heavily).
+
+A methodological asymmetry in the "advance" backtest (2026-07)
+-------------------------------------------------------------------
+``backtest_knockout_fixtures`` is an **approximation, not a fair
+comparison**, and should be read that way. The model's side of the
+comparison runs its full extra-time/penalty machinery
+(``src.knockout.advance_probability``), while the market's side is the
+crude ``P(win) + 0.5*P(draw)`` coin-flip approximation above -- there is
+no real market for "wins the tie" to compare against instead. That means
+part of any apparent model edge in that backtest could simply be the
+model doing more work on a question the market was never asked, rather
+than the model being better-calibrated on the thing the market actually
+prices. On a small, in-tournament sample, that asymmetry can matter.
+
+``backtest_90min_fixtures`` is the fair, apples-to-apples alternative:
+it scores the model and the market on exactly the same target the market
+prices pre-match -- the 90-minute 1X2 result (home win / draw / away
+win) -- with no knockout-stage logic on either side. Both
+``backtest_knockout_fixtures`` and ``backtest_90min_fixtures`` are worth
+keeping: one is the metric that actually matters for "who goes through,"
+the other is the one that isolates model-vs-market skill without the
+extra-time/penalty asymmetry. Report them side by side, not one
+in place of the other, and read both as a small, in-tournament sample,
+not a claim of long-run edge over the market.
+
+Multiclass Brier score and log loss
+--------------------------------------
+For the 90-minute comparison there are three possible outcomes, not two,
+so ``multiclass_brier_score`` sums the squared error across all three
+predicted probabilities (home win / draw / away win) instead of just
+one, and ``multiclass_log_loss`` is the negative log-likelihood of
+whichever of the three actually happened. Both reduce to the same
+concept as their binary counterparts -- lower is better, 0 is perfect --
+just extended to three outcomes instead of two.
 """
 
 from __future__ import annotations
@@ -62,7 +96,13 @@ from src.knockout import (
     DEFAULT_PENALTY_WIN_PROB,
     advance_probability,
 )
-from src.model import DEFAULT_HALF_LIFE_DAYS, DEFAULT_REG_STRENGTH, GoalsModel, fit_poisson_model
+from src.model import (
+    DEFAULT_HALF_LIFE_DAYS,
+    DEFAULT_REG_STRENGTH,
+    GoalsModel,
+    fit_poisson_model,
+    predict_match,
+)
 from src.odds import find_world_cup_fixtures, get_market_probabilities_for_teams
 
 # Empirically determined from the current results.csv structure (no explicit
@@ -86,6 +126,27 @@ def log_loss(y_true, p_pred, eps: float = 1e-15) -> float:
     y_true = np.asarray(y_true, dtype=float)
     p_pred = np.clip(np.asarray(p_pred, dtype=float), eps, 1.0 - eps)
     return float(-np.mean(y_true * np.log(p_pred) + (1.0 - y_true) * np.log(1.0 - p_pred)))
+
+
+def multiclass_brier_score(y_true_onehot, p_pred) -> float:
+    """Mean multiclass Brier score: mean over fixtures of the summed squared
+    error across all outcome classes (see module docstring). ``y_true_onehot``
+    and ``p_pred`` are both ``(n_fixtures, n_classes)``.
+    """
+    y_true_onehot = np.asarray(y_true_onehot, dtype=float)
+    p_pred = np.asarray(p_pred, dtype=float)
+    return float(np.mean(np.sum((p_pred - y_true_onehot) ** 2, axis=1)))
+
+
+def multiclass_log_loss(y_true_idx, p_pred, eps: float = 1e-15) -> float:
+    """Mean negative log-likelihood of the class that actually occurred.
+    ``y_true_idx`` is the true class index per fixture (0/1/2); ``p_pred``
+    is ``(n_fixtures, n_classes)``.
+    """
+    y_true_idx = np.asarray(y_true_idx, dtype=int)
+    p_pred = np.clip(np.asarray(p_pred, dtype=float), eps, 1.0)
+    picked = p_pred[np.arange(len(y_true_idx)), y_true_idx]
+    return float(-np.mean(np.log(picked)))
 
 
 def _resolve_actual_winner(
@@ -128,6 +189,15 @@ def backtest_knockout_fixtures(
 ) -> Tuple[pd.DataFrame, Dict[str, float]]:
     """Backtest the goals model against the betting market on already-played
     knockout fixtures in ``[start_date, end_date]``.
+
+    **This is an approximation, not a fair, apples-to-apples comparison --
+    see "A methodological asymmetry" in the module docstring.** The model
+    runs its full extra-time/penalty machinery
+    (``src.knockout.advance_probability``); the market side is only ever
+    the crude ``P(win) + 0.5*P(draw)`` coin-flip approximation below, since
+    there's no real market for "wins the tie" to use instead. For a fair
+    comparison against what the market actually prices, use
+    ``backtest_90min_fixtures`` instead (or alongside this one).
 
     For each fixture, the goals model is refit with ``as_of_date`` equal to
     that fixture's own date, so no fixture's own result -- or any later
@@ -242,6 +312,124 @@ def backtest_knockout_fixtures(
         "market_brier": brier_score(result_df["y_home_advanced"], result_df["p_market_home_advances"]),
         "model_log_loss": log_loss(result_df["y_home_advanced"], result_df["p_model_home_advances"]),
         "market_log_loss": log_loss(result_df["y_home_advanced"], result_df["p_market_home_advances"]),
+        "n_model_beats_market": int(result_df["model_beat_market"].sum()),
+    }
+    return result_df, summary
+
+
+def backtest_90min_fixtures(
+    df: pd.DataFrame,
+    start_date: str = KNOCKOUT_START_DATE,
+    end_date: Optional[str] = None,
+    half_life_days: float = DEFAULT_HALF_LIFE_DAYS,
+    reg_strength: float = DEFAULT_REG_STRENGTH,
+    blend_weight: float = 1.0,
+    verbose: bool = True,
+) -> Tuple[pd.DataFrame, Dict[str, float]]:
+    """Fair, apples-to-apples backtest: model vs market on the 90-minute
+    1X2 result only -- no extra-time/penalty logic on either side.
+
+    See "A methodological asymmetry" in the module docstring for why this
+    exists alongside ``backtest_knockout_fixtures``: that function's
+    market side is a coin-flip approximation for a question ("wins the
+    tie") the market is never actually asked, while this one scores both
+    the model and the market against exactly what the market prices
+    pre-match -- so any model edge (or deficit) found here isn't an
+    artifact of extra-time/penalty machinery only one side has.
+
+    The actual outcome is read directly from ``home_score``/``away_score``
+    (no shootout-resolution heuristic needed, unlike
+    ``backtest_knockout_fixtures`` -- the 90-minute result is unambiguous
+    even when the tie itself went to penalties).
+
+    Returns ``(comparison_df, summary)``. ``summary`` has ``n_fixtures``,
+    ``n_skipped`` (no matching OddsPapi fixture), ``model_brier``/
+    ``market_brier`` and ``model_log_loss``/``market_log_loss`` (the
+    multiclass versions, see module docstring), and
+    ``n_model_beats_market`` (fixtures where the model's multiclass
+    squared error was strictly lower than the market's).
+    """
+    start_date = pd.Timestamp(start_date)
+    end_date = pd.Timestamp(end_date) if end_date is not None else df["date"].max()
+
+    df_elo, _ = compute_elo_ratings(df)
+    window = df_elo[(df_elo["date"] >= start_date) & (df_elo["date"] <= end_date)].sort_values("date")
+
+    finished_fixtures = find_world_cup_fixtures(status_id=2, force_refresh=True)
+
+    model_cache: Dict[pd.Timestamp, GoalsModel] = {}
+    rows: List[dict] = []
+    n_skipped = 0
+
+    for _, fixture in window.iterrows():
+        market = get_market_probabilities_for_teams(
+            finished_fixtures, fixture["home_team"], fixture["away_team"]
+        )
+        if market is None:
+            n_skipped += 1
+            if verbose:
+                print(
+                    f"Skipping {fixture['home_team']} vs {fixture['away_team']} "
+                    f"({fixture['date'].date()}): no matching OddsPapi fixture found."
+                )
+            continue
+
+        as_of = fixture["date"]
+        if as_of not in model_cache:
+            model_cache[as_of] = fit_poisson_model(
+                df_elo, as_of_date=as_of, half_life_days=half_life_days, reg_strength=reg_strength
+            )
+        model = model_cache[as_of]
+
+        pred = predict_match(
+            model, fixture["home_team"], fixture["away_team"],
+            fixture["home_elo_pre"], fixture["away_elo_pre"],
+            neutral=bool(fixture["neutral"]), blend_weight=blend_weight,
+        )
+
+        if fixture["home_score"] > fixture["away_score"]:
+            outcome_idx = 0
+        elif fixture["home_score"] < fixture["away_score"]:
+            outcome_idx = 2
+        else:
+            outcome_idx = 1
+
+        rows.append(
+            {
+                "date": fixture["date"].date(),
+                "home_team": fixture["home_team"],
+                "away_team": fixture["away_team"],
+                "result": ["Home win", "Draw", "Away win"][outcome_idx],
+                "model_p_home": pred.home_win,
+                "model_p_draw": pred.draw,
+                "model_p_away": pred.away_win,
+                "market_p_home": market.p_home,
+                "market_p_draw": market.p_draw,
+                "market_p_away": market.p_away,
+                "outcome_idx": outcome_idx,
+            }
+        )
+
+    result_df = pd.DataFrame(rows)
+    if result_df.empty:
+        raise ValueError("No backtestable fixtures found (all skipped or none in range).")
+
+    y_onehot = np.zeros((len(result_df), 3))
+    y_onehot[np.arange(len(result_df)), result_df["outcome_idx"].to_numpy()] = 1.0
+    model_probs = result_df[["model_p_home", "model_p_draw", "model_p_away"]].to_numpy()
+    market_probs = result_df[["market_p_home", "market_p_draw", "market_p_away"]].to_numpy()
+
+    model_sq_err = np.sum((model_probs - y_onehot) ** 2, axis=1)
+    market_sq_err = np.sum((market_probs - y_onehot) ** 2, axis=1)
+    result_df["model_beat_market"] = model_sq_err < market_sq_err
+
+    summary = {
+        "n_fixtures": len(result_df),
+        "n_skipped": n_skipped,
+        "model_brier": multiclass_brier_score(y_onehot, model_probs),
+        "market_brier": multiclass_brier_score(y_onehot, market_probs),
+        "model_log_loss": multiclass_log_loss(result_df["outcome_idx"].to_numpy(), model_probs),
+        "market_log_loss": multiclass_log_loss(result_df["outcome_idx"].to_numpy(), market_probs),
         "n_model_beats_market": int(result_df["model_beat_market"].sum()),
     }
     return result_df, summary
@@ -382,9 +570,36 @@ if __name__ == "__main__":
     matches = load_results()
 
     comparison, summary = backtest_knockout_fixtures(matches)
+    print("=== 'Advance' backtest (APPROXIMATION -- see docstring) ===")
     print(comparison.to_string(index=False))
     print()
     print(summary)
+
+    comparison_90, summary_90 = backtest_90min_fixtures(matches)
+    print("\n=== 90-minute backtest (FAIR, apples-to-apples comparison) ===")
+    print(comparison_90.to_string(index=False))
+    print()
+    print(summary_90)
+
+    print("\n=== Side by side ===")
+    print(
+        f"Advance (approx.)   -- model Brier={summary['model_brier']:.4f}  "
+        f"market Brier={summary['market_brier']:.4f}  |  "
+        f"model log loss={summary['model_log_loss']:.4f}  "
+        f"market log loss={summary['market_log_loss']:.4f}  |  "
+        f"model beat market on {summary['n_model_beats_market']}/{summary['n_fixtures']}"
+    )
+    print(
+        f"90-minute (fair)    -- model Brier={summary_90['model_brier']:.4f}  "
+        f"market Brier={summary_90['market_brier']:.4f}  |  "
+        f"model log loss={summary_90['model_log_loss']:.4f}  "
+        f"market log loss={summary_90['market_log_loss']:.4f}  |  "
+        f"model beat market on {summary_90['n_model_beats_market']}/{summary_90['n_fixtures']}"
+    )
+    print(
+        "\nNote: small, in-tournament sample (n < 25 fixtures either way) -- "
+        "read as an early signal, not a claim of long-run edge over the market."
+    )
 
     unplayed = find_unplayed_fixtures_in_window(matches, ROUND_OF_16_START_DATE, ROUND_OF_16_END_DATE)
     print(f"\n{len(unplayed)} unplayed Round-of-16 fixtures found.")
