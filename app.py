@@ -88,55 +88,193 @@ R16_TIES = [
     ("Argentina", "Egypt", True),
     ("Switzerland", "Colombia", True),
 ]
-QF_SLOTS = [
-    ("QF1", "France", "Morocco", True, True),
-    ("QF2", "Winner: Portugal / Spain", "Winner: USA / Belgium", True, False),
-    ("QF3", "Winner: Argentina / Egypt", "Winner: Switzerland / Colombia", True, False),
-    ("QF4", "Norway", "England", True, True),
-]
+# Only QF1 and QF4 are confirmed matchups (both teams already through);
+# QF2/QF3 depend on the still-open round-of-16 ties above.
+CONFIRMED_QF = {
+    0: ("QF1", "France", "Morocco", True),
+    3: ("QF4", "Norway", "England", True),
+}
+
+# Bracket geometry: every position is computed once, in Python, rather than
+# leaned on CSS flexbox auto-layout -- for a fixed-shape tree like this one,
+# explicit pixel math is far more reliable than fighting flexbox/grid for
+# perfectly-met connector lines.
+CARD_W = 208
+CARD_H = 62
+COL_GAP = 64
+ROW_STEP = 86  # center-to-center spacing between adjacent Round of 16 cards
+
+
+def _bracket_geometry():
+    """Compute (x, y_center) for every card and the connector line segments.
+
+    Only R16 pairs -> QF2/QF3 and QF -> SF -> Final have a real "two
+    children, one parent" relationship in what's rendered (QF1 and QF4 are
+    already-decided ties with no round-of-16 match shown, so they get no
+    incoming connector) -- geometry follows that shape exactly rather than
+    assuming a perfectly symmetric bracket.
+    """
+    r16_y = [CARD_H / 2 + i * ROW_STEP for i in range(4)]
+    qf2_y = (r16_y[0] + r16_y[1]) / 2
+    qf3_y = (r16_y[2] + r16_y[3]) / 2
+    qf1_y = qf2_y - ROW_STEP
+    qf4_y = qf3_y + ROW_STEP
+    sf1_y = (qf1_y + qf2_y) / 2
+    sf2_y = (qf3_y + qf4_y) / 2
+    final_y = (sf1_y + sf2_y) / 2
+
+    all_y = r16_y + [qf1_y, qf2_y, qf3_y, qf4_y, sf1_y, sf2_y, final_y]
+    shift = CARD_H / 2 - min(all_y)
+
+    col_x = [i * (CARD_W + COL_GAP) for i in range(4)]
+
+    return {
+        "r16_y": [y + shift for y in r16_y],
+        "qf_y": [qf1_y + shift, qf2_y + shift, qf3_y + shift, qf4_y + shift],
+        "sf_y": [sf1_y + shift, sf2_y + shift],
+        "final_y": final_y + shift,
+        "col_x": col_x,
+        "total_h": max(all_y) - min(all_y) + CARD_H,
+        "total_w": col_x[-1] + CARD_W,
+    }
+
+
+def _connector_html(y1: float, y2: float, x_from: float, gap: float) -> str:
+    """Elbow connector from two child cards (at y1, y2) into one parent card
+    (vertically centered between them) -- two stubs in, a vertical bar, one
+    stub out.
+    """
+    elbow_x = x_from + gap / 2
+    parent_y = (y1 + y2) / 2
+    top, bottom = min(y1, y2), max(y1, y2)
+    return f"""
+    <div class="bx-conn-h" style="top:{y1 - 1:.1f}px; left:{x_from:.1f}px; width:{gap / 2:.1f}px;"></div>
+    <div class="bx-conn-h" style="top:{y2 - 1:.1f}px; left:{x_from:.1f}px; width:{gap / 2:.1f}px;"></div>
+    <div class="bx-conn-v" style="top:{top:.1f}px; left:{elbow_x - 1:.1f}px; height:{bottom - top:.1f}px;"></div>
+    <div class="bx-conn-h" style="top:{parent_y - 1:.1f}px; left:{elbow_x:.1f}px; width:{gap / 2:.1f}px;"></div>
+    """
+
+
+def _decided_card_html(x: float, y: float, label: str, home: str, away: str, p_home: float, p_away: float) -> str:
+    home_fav = p_home >= p_away
+    home_cls = "bx-team bx-fav" if home_fav else "bx-team"
+    away_cls = "bx-team bx-fav" if not home_fav else "bx-team"
+    # The bar is a two-segment split (home share, away share) where the
+    # favored team's segment is always the accent color, so the bar and the
+    # bold/accent-colored name always point at the same team.
+    home_color = COLOR_BLUE if home_fav else COLOR_GRAY
+    away_color = COLOR_BLUE if not home_fav else COLOR_GRAY
+    return f"""
+    <div class="bx-card" style="left:{x:.1f}px; top:{y - CARD_H / 2:.1f}px; width:{CARD_W}px; height:{CARD_H}px;">
+      <div class="bx-label">{label}</div>
+      <div class="{home_cls}"><span>{home}</span><span class="bx-pct">{p_home:.0%}</span></div>
+      <div class="{away_cls}"><span>{away}</span><span class="bx-pct">{p_away:.0%}</span></div>
+      <div class="bx-bar">
+        <div class="bx-bar-seg" style="width:{p_home * 100:.1f}%; background:{home_color};"></div>
+        <div class="bx-bar-seg" style="width:{p_away * 100:.1f}%; background:{away_color};"></div>
+      </div>
+    </div>
+    """
+
+
+def _pending_card_html(x: float, y: float, label: str, line1: str, line2: str) -> str:
+    return f"""
+    <div class="bx-card bx-pending" style="left:{x:.1f}px; top:{y - CARD_H / 2:.1f}px; width:{CARD_W}px; height:{CARD_H}px;">
+      <div class="bx-label">{label}</div>
+      <div class="bx-team bx-tbd">{line1}</div>
+      <div class="bx-team bx-tbd">{line2}</div>
+    </div>
+    """
+
+
+BRACKET_CSS = f"""
+<style>
+.bx-wrap {{ overflow-x: auto; padding: 8px 4px 16px 4px; }}
+.bx-headers {{ display: flex; gap: {COL_GAP}px; margin-bottom: 10px; min-width: max-content; }}
+.bx-headers > div {{ width: {CARD_W}px; font-weight: 600; font-size: 0.85rem; color: {COLOR_TEXT_SECONDARY};
+  text-transform: uppercase; letter-spacing: 0.04em; }}
+.bx-canvas {{ position: relative; min-width: max-content; }}
+.bx-card {{ position: absolute; background: #ffffff; border: 1px solid rgba(11,11,11,0.10);
+  border-radius: 8px; padding: 6px 10px; box-shadow: 0 1px 2px rgba(11,11,11,0.04); box-sizing: border-box; }}
+.bx-card.bx-pending {{ background: #f9f9f7; border: 1px dashed #c3c2b7; box-shadow: none; }}
+.bx-label {{ font-size: 0.7rem; font-weight: 600; color: {COLOR_TEXT_SECONDARY}; margin-bottom: 2px; }}
+.bx-team {{ display: flex; justify-content: space-between; font-size: 0.85rem; line-height: 1.35; color: #0b0b0b; }}
+.bx-team.bx-fav {{ font-weight: 700; color: {COLOR_BLUE}; }}
+.bx-team.bx-tbd {{ color: #898781; font-style: italic; font-weight: 400; }}
+.bx-pct {{ font-variant-numeric: tabular-nums; }}
+.bx-bar {{ margin-top: 4px; height: 4px; border-radius: 2px; overflow: hidden; display: flex; }}
+.bx-bar-seg {{ height: 100%; }}
+.bx-bar-seg:first-child {{ margin-right: 2px; }}
+.bx-conn-h {{ position: absolute; height: 2px; background: #c3c2b7; }}
+.bx-conn-v {{ position: absolute; width: 2px; background: #c3c2b7; }}
+</style>
+"""
 
 
 def render_bracket(model, current_ratings: dict) -> None:
     st.subheader("Remaining Bracket")
     st.caption(
-        "Confirmed ties show the model's P(advance); undetermined slots show the pending matchup."
+        "Confirmed ties show the model's P(advance) with the favored team highlighted; "
+        "undetermined slots (dashed) show the pending matchup."
     )
 
-    col_r16, col_qf, col_sf, col_final = st.columns(4)
+    geo = _bracket_geometry()
+    col_x = geo["col_x"]
 
-    with col_r16:
-        st.markdown("**Round of 16**")
-        for home, away, neutral in R16_TIES:
-            adv = _tie_probs(model, current_ratings, home, away, neutral)
-            with st.container(border=True):
-                st.markdown(f"{home} &nbsp;**{adv.p_a_advances:.0%}**", unsafe_allow_html=True)
-                st.markdown(f"{away} &nbsp;**{adv.p_b_advances:.0%}**", unsafe_allow_html=True)
+    parts = [BRACKET_CSS]
+    parts.append(
+        '<div class="bx-wrap"><div class="bx-headers">'
+        '<div>Round of 16</div><div>Quarterfinals</div><div>Semifinals</div><div>Final</div>'
+        "</div>"
+    )
+    parts.append(f'<div class="bx-canvas" style="height:{geo["total_h"]:.0f}px; width:{geo["total_w"]:.0f}px;">')
 
-    with col_qf:
-        st.markdown("**Quarterfinals**")
-        for label, home, away, neutral, confirmed in QF_SLOTS:
-            with st.container(border=True):
-                st.caption(label)
-                if confirmed:
-                    adv = _tie_probs(model, current_ratings, home, away, neutral)
-                    st.markdown(f"{home} &nbsp;**{adv.p_a_advances:.0%}**", unsafe_allow_html=True)
-                    st.markdown(f"{away} &nbsp;**{adv.p_b_advances:.0%}**", unsafe_allow_html=True)
-                else:
-                    st.caption(home)
-                    st.caption(away)
+    # Round of 16
+    for i, (home, away, neutral) in enumerate(R16_TIES):
+        adv = _tie_probs(model, current_ratings, home, away, neutral)
+        parts.append(
+            _decided_card_html(
+                col_x[0], geo["r16_y"][i], f"R16-{i + 1}", home, away, adv.p_a_advances, adv.p_b_advances
+            )
+        )
 
-    with col_sf:
-        st.markdown("**Semifinals**")
-        for label, desc in [("SF1", "Winner QF1 vs Winner QF2"), ("SF2", "Winner QF3 vs Winner QF4")]:
-            with st.container(border=True):
-                st.caption(label)
-                st.caption(desc)
+    # Quarterfinals
+    for i in (0, 3):
+        label, home, away, neutral = CONFIRMED_QF[i]
+        adv = _tie_probs(model, current_ratings, home, away, neutral)
+        parts.append(
+            _decided_card_html(col_x[1], geo["qf_y"][i], label, home, away, adv.p_a_advances, adv.p_b_advances)
+        )
 
-    with col_final:
-        st.markdown("**Final**")
-        with st.container(border=True):
-            st.caption("Final")
-            st.caption("Winner SF1 vs Winner SF2")
+    parts.append(_pending_card_html(col_x[1], geo["qf_y"][1], "QF2", "Winner: Portugal / Spain", "Winner: USA / Belgium"))
+    parts.append(_pending_card_html(col_x[1], geo["qf_y"][2], "QF3", "Winner: Argentina / Egypt", "Winner: Switzerland / Colombia"))
+
+    # Semifinals + Final (fully undetermined)
+    parts.append(_pending_card_html(col_x[2], geo["sf_y"][0], "SF1", "Winner QF1", "Winner QF2"))
+    parts.append(_pending_card_html(col_x[2], geo["sf_y"][1], "SF2", "Winner QF3", "Winner QF4"))
+    parts.append(_pending_card_html(col_x[3], geo["final_y"], "Final", "Winner SF1", "Winner SF2"))
+
+    # Connectors: R16 pairs -> QF2/QF3, QF -> SF, SF -> Final
+    card_right = col_x[0] + CARD_W
+    parts.append(_connector_html(geo["r16_y"][0], geo["r16_y"][1], card_right, COL_GAP))
+    parts.append(_connector_html(geo["r16_y"][2], geo["r16_y"][3], card_right, COL_GAP))
+
+    card_right = col_x[1] + CARD_W
+    parts.append(_connector_html(geo["qf_y"][0], geo["qf_y"][1], card_right, COL_GAP))
+    parts.append(_connector_html(geo["qf_y"][2], geo["qf_y"][3], card_right, COL_GAP))
+
+    card_right = col_x[2] + CARD_W
+    parts.append(_connector_html(geo["sf_y"][0], geo["sf_y"][1], card_right, COL_GAP))
+
+    parts.append("</div></div>")
+
+    # Markdown treats any line indented >=4 spaces as a code block, which
+    # would otherwise render this HTML as literal text instead of parsing
+    # it -- the card/connector helpers above are written as pretty-printed,
+    # indented triple-quoted strings for readability, so strip that
+    # indentation back out line-by-line before handing it to st.markdown.
+    html = "\n".join(line.strip() for line in "".join(parts).splitlines())
+    st.markdown(html, unsafe_allow_html=True)
 
 
 # --------------------------------------------------------------------------
