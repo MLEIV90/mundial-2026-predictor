@@ -14,9 +14,9 @@ that gap directly and doesn't have this bias.
 **This module is a principled ensemble of two legitimate signals, not an
 attempt to replicate bookmaker odds.** The blend weight is chosen (and
 should be re-tuned) by backtesting against real match outcomes -- see
-``src.evaluation.backtest_knockout_fixtures`` -- never by minimizing the
-gap to the market directly. The market is used only as a diagnostic in
-the notebook calibration check, to see the *effect* of a candidate weight,
+``src.evaluation.sweep_blend_weight`` -- never by minimizing the gap to
+the market directly. The market is used only as a diagnostic in that
+sweep, to see how the model's own Brier/log-loss compares in context,
 not as the thing being fit.
 
 The blend
@@ -25,12 +25,27 @@ The blend
 
 for each of P(home win), P(draw), P(away win) independently. Both
 components already sum to 1, so the blend does too automatically (a
-convex combination), no renormalization needed. ``w`` (``blend_weight``)
-defaults to 0.7: the Poisson model (which also models goal-scoring
-dynamics, extra time, and the Dixon-Coles low-score correlation) stays
-the primary signal, with Elo correcting it rather than replacing it.
-``blend_weight=1.0`` recovers the pure-Poisson model exactly, kept
-available throughout ``src.model``/``src.knockout`` for comparison.
+convex combination), no renormalization needed. ``blend_weight=1.0``
+recovers the pure-Poisson model exactly, kept available throughout
+``src.model``/``src.knockout`` for comparison.
+
+Calibration finding (2026-07-07)
+---------------------------------
+``sweep_blend_weight`` was run over ``blend_weight in [0.0, 0.1, ..., 1.0]``
+against the FAIR 90-minute 1X2 backtest across all 22 knockout fixtures
+with cached market odds (``data/app/backtest_90min.json``). The model's
+own multiclass Brier score against the *actual* 90-minute outcome
+increased smoothly and monotonically from 0.365 at ``blend_weight=0.0``
+to 0.413 at ``blend_weight=1.0`` -- i.e. pure Elo (0.0) minimized Brier
+on this sample, with no interior optimum. ``DEFAULT_BLEND_WEIGHT`` is set
+to that value below.
+
+Read this honestly, not triumphantly: 22 fixtures is a small sample, so
+a boundary result deserves more skepticism than an interior one would --
+it could reflect this particular knockout bracket rather than a durable
+property of the Poisson model. Re-run the sweep (``scripts/
+calibrate_blend_weight.py``) as more results come in, and revisit this
+value if the curve stops being monotonic or the optimum moves inward.
 
 Deriving win/draw/loss from Elo
 ----------------------------------
@@ -74,7 +89,7 @@ from __future__ import annotations
 
 from typing import Tuple
 
-DEFAULT_BLEND_WEIGHT = 0.7
+DEFAULT_BLEND_WEIGHT = 0.0
 ELO_HOME_ADVANTAGE = 100.0
 
 
@@ -111,8 +126,8 @@ def blend_outcome_probabilities(
     """Convex-combine (P(home), P(draw), P(away)) from the two signals.
 
     ``blend_weight=1.0`` returns ``poisson_probs`` unchanged;
-    ``blend_weight=0.0`` would return pure Elo (not recommended --
-    Poisson should stay primary, see module docstring).
+    ``blend_weight=0.0`` returns pure Elo -- the calibrated default, see
+    the "Calibration finding" section of the module docstring for why.
     """
     if not 0.0 <= blend_weight <= 1.0:
         raise ValueError(f"blend_weight must be in [0, 1], got {blend_weight}")

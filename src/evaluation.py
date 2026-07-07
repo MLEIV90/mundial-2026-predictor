@@ -435,6 +435,130 @@ def backtest_90min_fixtures(
     return result_df, summary
 
 
+def sweep_blend_weight(
+    df: pd.DataFrame,
+    blend_weights: Optional[List[float]] = None,
+    start_date: str = KNOCKOUT_START_DATE,
+    end_date: Optional[str] = None,
+    half_life_days: float = DEFAULT_HALF_LIFE_DAYS,
+    reg_strength: float = DEFAULT_REG_STRENGTH,
+    verbose: bool = True,
+) -> pd.DataFrame:
+    """Sweep ``blend_weight`` (see ``src.blend``) against the FAIR 90-minute
+    backtest across every available knockout fixture, to pick the value
+    that best predicts real outcomes.
+
+    **This calibrates against actual match results (multiclass Brier/log
+    loss on the true 90-minute outcome), not against the market** -- the
+    market's own Brier/log loss is included in the output purely as
+    context, exactly as in ``backtest_90min_fixtures``, never as the
+    quantity being minimized. Picking ``blend_weight`` to minimize the
+    *gap to the market* instead would just be curve-fitting to Pinnacle's
+    odds, which defeats the point of an independent model.
+
+    The goals model is refit only once per unique fixture date (not once
+    per candidate weight) since ``blend_weight`` only affects prediction,
+    not fitting -- reusing the same model_cache across the whole sweep is
+    what keeps this fast.
+
+    Returns a DataFrame with one row per candidate weight:
+    ``blend_weight``, ``model_brier``, ``model_log_loss``, ``n_fixtures``,
+    plus the (constant across rows) ``market_brier``/``market_log_loss``
+    for reference.
+    """
+    if blend_weights is None:
+        blend_weights = [round(w * 0.1, 1) for w in range(11)]  # 0.0, 0.1, ..., 1.0
+
+    start_date = pd.Timestamp(start_date)
+    end_date = pd.Timestamp(end_date) if end_date is not None else df["date"].max()
+
+    df_elo, _ = compute_elo_ratings(df)
+    window = df_elo[(df_elo["date"] >= start_date) & (df_elo["date"] <= end_date)].sort_values("date")
+
+    finished_fixtures = find_world_cup_fixtures(status_id=2, force_refresh=True)
+
+    # Gather each fixture's market probs, actual outcome, and pre-fitted
+    # model ONCE; every blend_weight candidate below just re-blends with
+    # the same already-fitted model, no refitting.
+    model_cache: Dict[pd.Timestamp, GoalsModel] = {}
+    fixtures: List[dict] = []
+    n_skipped = 0
+
+    for _, fixture in window.iterrows():
+        market = get_market_probabilities_for_teams(
+            finished_fixtures, fixture["home_team"], fixture["away_team"]
+        )
+        if market is None:
+            n_skipped += 1
+            if verbose:
+                print(
+                    f"Skipping {fixture['home_team']} vs {fixture['away_team']} "
+                    f"({fixture['date'].date()}): no matching OddsPapi fixture found."
+                )
+            continue
+
+        as_of = fixture["date"]
+        if as_of not in model_cache:
+            model_cache[as_of] = fit_poisson_model(
+                df_elo, as_of_date=as_of, half_life_days=half_life_days, reg_strength=reg_strength
+            )
+
+        if fixture["home_score"] > fixture["away_score"]:
+            outcome_idx = 0
+        elif fixture["home_score"] < fixture["away_score"]:
+            outcome_idx = 2
+        else:
+            outcome_idx = 1
+
+        fixtures.append(
+            {
+                "model": model_cache[as_of],
+                "home_team": fixture["home_team"],
+                "away_team": fixture["away_team"],
+                "home_elo_pre": fixture["home_elo_pre"],
+                "away_elo_pre": fixture["away_elo_pre"],
+                "neutral": bool(fixture["neutral"]),
+                "outcome_idx": outcome_idx,
+                "market_probs": (market.p_home, market.p_draw, market.p_away),
+            }
+        )
+
+    if not fixtures:
+        raise ValueError("No backtestable fixtures found (all skipped or none in range).")
+
+    y_onehot = np.zeros((len(fixtures), 3))
+    for i, fx in enumerate(fixtures):
+        y_onehot[i, fx["outcome_idx"]] = 1.0
+    outcome_idxs = [fx["outcome_idx"] for fx in fixtures]
+    market_probs = np.array([fx["market_probs"] for fx in fixtures])
+    market_brier = multiclass_brier_score(y_onehot, market_probs)
+    market_log_loss = multiclass_log_loss(outcome_idxs, market_probs)
+
+    rows = []
+    for w in blend_weights:
+        model_probs = np.zeros((len(fixtures), 3))
+        for i, fx in enumerate(fixtures):
+            pred = predict_match(
+                fx["model"], fx["home_team"], fx["away_team"],
+                fx["home_elo_pre"], fx["away_elo_pre"],
+                neutral=fx["neutral"], blend_weight=w,
+            )
+            model_probs[i] = [pred.home_win, pred.draw, pred.away_win]
+
+        rows.append(
+            {
+                "blend_weight": w,
+                "model_brier": multiclass_brier_score(y_onehot, model_probs),
+                "model_log_loss": multiclass_log_loss(outcome_idxs, model_probs),
+                "market_brier": market_brier,
+                "market_log_loss": market_log_loss,
+                "n_fixtures": len(fixtures),
+            }
+        )
+
+    return pd.DataFrame(rows)
+
+
 def save_backtest_json(
     comparison: pd.DataFrame, summary: Dict[str, float], path: str, generated_at: Optional[str] = None
 ) -> None:
