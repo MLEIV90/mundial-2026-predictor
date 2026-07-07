@@ -562,10 +562,21 @@ with tab3:
 
     col_a, col_b = st.columns(2)
     with col_a:
-        team_a = st.selectbox("Team A (home slot)", teams, index=default_a)
+        team_a = st.selectbox("Team A", teams, index=default_a)
     with col_b:
-        team_b = st.selectbox("Team B (away slot)", teams, index=default_b)
-    neutral = st.checkbox("Neutral venue", value=True)
+        team_b = st.selectbox("Team B", teams, index=default_b)
+
+    host_options = ["Neutral (no host advantage)", f"{team_a} is the host", f"{team_b} is the host"]
+    host_choice = st.selectbox(
+        "Host nation playing at home?",
+        host_options,
+        index=0,
+        help=(
+            "World Cup knockout matches are at neutral venues by default -- picking a "
+            "team here isn't about which dropdown it's in, only whether that specific "
+            "team is the actual tournament host playing on home soil."
+        ),
+    )
     use_blend = st.checkbox(
         "Apply Elo blend correction (recommended)",
         value=True,
@@ -583,34 +594,59 @@ with tab3:
         elo_a = current_ratings.get(team_a, 1500.0)
         elo_b = current_ratings.get(team_b, 1500.0)
 
-        match_pred = predict_match(model, team_a, team_b, elo_a, elo_b, neutral=neutral, blend_weight=blend_weight)
-        adv = advance_probability(
-            model, team_a, team_b, elo_a, elo_b, neutral=neutral, blend_weight=blend_weight
+        # Home advantage must follow actual host status, never dropdown slot --
+        # so team_b is only ever passed as the model's "home" team when team_b
+        # is explicitly the selected host; results are swapped back afterward
+        # so "Team A"/"Team B" always refer to the dropdowns, not the model's
+        # internal home/away slots.
+        b_is_host = host_choice == host_options[2]
+        neutral = host_choice == host_options[0]
+        if b_is_host:
+            model_home, model_away, elo_home, elo_away = team_b, team_a, elo_b, elo_a
+        else:
+            model_home, model_away, elo_home, elo_away = team_a, team_b, elo_a, elo_b
+
+        match_pred = predict_match(
+            model, model_home, model_away, elo_home, elo_away, neutral=neutral, blend_weight=blend_weight
         )
+        adv = advance_probability(
+            model, model_home, model_away, elo_home, elo_away, neutral=neutral, blend_weight=blend_weight
+        )
+
+        if b_is_host:
+            p_a_advances, p_b_advances = adv.p_b_advances, adv.p_a_advances
+            a_win, draw, b_win = match_pred.away_win, match_pred.draw, match_pred.home_win
+            a_xg, b_xg = match_pred.away_xg, match_pred.home_xg
+            matrix = match_pred.score_matrix.T
+        else:
+            p_a_advances, p_b_advances = adv.p_a_advances, adv.p_b_advances
+            a_win, draw, b_win = match_pred.home_win, match_pred.draw, match_pred.away_win
+            a_xg, b_xg = match_pred.home_xg, match_pred.away_xg
+            matrix = match_pred.score_matrix
+        matrix = matrix.rename_axis(index="Team A goals", columns="Team B goals")
 
         st.subheader("If this were a knockout tie")
         col1, col2 = st.columns(2)
-        col1.metric(f"{team_a} advances", f"{adv.p_a_advances:.1%}")
-        col2.metric(f"{team_b} advances", f"{adv.p_b_advances:.1%}")
+        col1.metric(f"{team_a} advances", f"{p_a_advances:.1%}")
+        col2.metric(f"{team_b} advances", f"{p_b_advances:.1%}")
 
         st.subheader("Regulation time (90')")
         col1, col2, col3 = st.columns(3)
-        col1.metric(f"{team_a} win", f"{match_pred.home_win:.1%}")
-        col2.metric("Draw", f"{match_pred.draw:.1%}")
-        col3.metric(f"{team_b} win", f"{match_pred.away_win:.1%}")
+        col1.metric(f"{team_a} win", f"{a_win:.1%}")
+        col2.metric("Draw", f"{draw:.1%}")
+        col3.metric(f"{team_b} win", f"{b_win:.1%}")
 
-        st.metric("Expected goals", f"{match_pred.home_xg:.2f} - {match_pred.away_xg:.2f}")
+        st.metric("Expected goals", f"{a_xg:.2f} - {b_xg:.2f}")
 
-        matrix = match_pred.score_matrix
         flat_idx = matrix.values.argmax()
-        most_likely_home, most_likely_away = divmod(flat_idx, matrix.shape[1])
+        most_likely_a, most_likely_b = divmod(flat_idx, matrix.shape[1])
         st.metric(
             "Most likely scoreline",
-            f"{team_a} {most_likely_home} - {most_likely_away} {team_b}",
+            f"{team_a} {most_likely_a} - {most_likely_b} {team_b}",
             help=f"P(this exact scoreline) = {matrix.values.max():.1%}",
         )
 
-        with st.expander("Full score matrix (rows = home goals, columns = away goals)"):
+        with st.expander("Full score matrix (rows = Team A goals, columns = Team B goals)"):
             st.dataframe(matrix.style.format("{:.1%}"), use_container_width=True)
 
 # --------------------------------------------------------------------------
