@@ -49,21 +49,26 @@ already-played knockout fixtures (``src.evaluation.backtest_knockout_fixtures``,
 scored against actual outcomes, *not* against the market -- see that
 function's docstring for why the market must not be the tuning target).
 0.01 (Brier 0.1522) was the worst value tested; **10.0 was the best**
-(Brier 0.1416, log loss 0.4501) on that backtest, which is why it's the
-default now. The curve isn't perfectly smooth (20 fixtures is a small
-backtest), but the improvement from roughly 1.0 upward is consistent
-enough to trust: 3.0 -> 0.1436, 8.0 -> 0.1429, 10.0 -> 0.1416, 20.0 ->
-0.1449, 50.0 -> 0.1480 (degrading again).
+(Brier 0.1416, log loss 0.4501) among the candidates tried, which is why
+it's the default now -- **this Brier score is only a comparison of
+``reg_strength`` values against each other, never a comparison against
+the market's own Brier score** (see the paragraph below for that
+comparison, done properly). The curve isn't perfectly smooth (20
+fixtures is a small backtest), but the improvement from roughly 1.0
+upward is consistent enough to trust: 3.0 -> 0.1436, 8.0 -> 0.1429,
+10.0 -> 0.1416, 20.0 -> 0.1449, 50.0 -> 0.1480 (degrading again).
 
 Note: ``backtest_knockout_fixtures`` is itself only an *approximation* of
 a model-vs-market comparison, not a fair one (see its docstring and
 ``src.evaluation``'s module docstring for why) -- so the numbers above
 say which ``reg_strength`` is best *among themselves*, not that the
 model beats the market. On the fair, apples-to-apples 90-minute 1X2
-backtest (``backtest_90min_fixtures``), the model is competitive with /
-roughly on par with the market -- Brier 0.3888 vs the market's 0.3975
-over ~20 fixtures, essentially a tie on this small in-tournament sample,
-not evidence of being superior to it.
+backtest (``backtest_90min_fixtures``, at the calibrated
+``blend_weight=0.0`` -- see ``src.blend``'s "Calibration finding"
+section), the model is competitive with / roughly on par with the
+market -- Brier 0.3653 vs the market's 0.4068 over 22 fixtures,
+essentially a tie on this small in-tournament sample, **not** evidence
+of being superior to it.
 
 What raising ``reg_strength`` does *not* do: fitted ``beta_elo`` turns
 out to be essentially constant (~0.0019) across that entire range -- it
