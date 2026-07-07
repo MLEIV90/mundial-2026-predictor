@@ -63,10 +63,11 @@ a model-vs-market comparison, not a fair one (see its docstring and
 ``src.evaluation``'s module docstring for why) -- so the numbers above
 say which ``reg_strength`` is best *among themselves*, not that the
 model beats the market. On the fair, apples-to-apples 90-minute 1X2
-backtest (``backtest_90min_fixtures``, at the calibrated
-``blend_weight=0.0`` -- see ``src.blend``'s "Calibration finding"
-section), the model is competitive with / roughly on par with the
-market -- Brier 0.3653 vs the market's 0.4068 over 22 fixtures,
+backtest (``backtest_90min_fixtures``, at the default
+``blend_weight=0.5`` -- see ``src.blend``'s "Calibration finding"
+section for why the sweep's raw minimizer of 0.0 was deliberately not
+used as-is), the model is competitive with / roughly on par with the
+market -- Brier 0.3840 vs the market's 0.4068 over 22 fixtures,
 essentially a tie on this small in-tournament sample, **not** evidence
 of being superior to it.
 

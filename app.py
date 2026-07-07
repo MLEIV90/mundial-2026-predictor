@@ -578,15 +578,16 @@ with tab3:
         ),
     )
     use_blend = st.checkbox(
-        "Apply Elo correction (recommended)",
+        "Apply Elo blend correction (recommended)",
         value=True,
         help=(
-            "Corrects the Poisson goals model's conservatism on clear favorites "
-            "using pure Elo win/draw/loss probabilities -- see src/blend.py. "
-            "Calibrated by backtesting against actual results (not the market): "
-            "on the 22 knockout fixtures backtested so far, full Elo minimized "
-            "prediction error, so that's the default. Uncheck to see the "
-            "pure-Poisson prediction for comparison."
+            "Corrects the Poisson goals model's conservatism on clear favorites by "
+            "blending it 50/50 with pure Elo win/draw/loss probabilities -- see "
+            "src/blend.py. Backtesting against actual results (not the market) on "
+            "the 22 knockout fixtures scored so far actually favored full Elo, but "
+            "that's too small a sample to fully discard the Poisson model, so the "
+            "default is a deliberate even blend rather than that raw result. "
+            "Uncheck to see the pure-Poisson prediction for comparison."
         ),
     )
     blend_weight = DEFAULT_BLEND_WEIGHT if use_blend else 1.0

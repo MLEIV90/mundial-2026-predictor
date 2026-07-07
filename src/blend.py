@@ -37,15 +37,24 @@ with cached market odds (``data/app/backtest_90min.json``). The model's
 own multiclass Brier score against the *actual* 90-minute outcome
 increased smoothly and monotonically from 0.365 at ``blend_weight=0.0``
 to 0.413 at ``blend_weight=1.0`` -- i.e. pure Elo (0.0) minimized Brier
-on this sample, with no interior optimum. ``DEFAULT_BLEND_WEIGHT`` is set
-to that value below.
+on this sample, with no interior optimum.
 
-Read this honestly, not triumphantly: 22 fixtures is a small sample, so
-a boundary result deserves more skepticism than an interior one would --
-it could reflect this particular knockout bracket rather than a durable
-property of the Poisson model. Re-run the sweep (``scripts/
-calibrate_blend_weight.py``) as more results come in, and revisit this
-value if the curve stops being monotonic or the optimum moves inward.
+**``DEFAULT_BLEND_WEIGHT`` is deliberately set to 0.5, not 0.0.** Taking
+the raw sweep minimizer at face value would mean concluding, from 22
+fixtures, that the Poisson goals model adds no value at all to the 1X2
+outcome -- a boundary result on a sample this small deserves more
+skepticism than an interior one would, since it's just as consistent
+with "this particular knockout bracket happened to favor Elo" as with
+"the Poisson model has no signal here." Both signals are legitimately
+informative (Elo from long-run team strength, Poisson from actual
+goal-scoring dynamics plus the Dixon-Coles low-score correlation), so an
+even 50/50 blend is the principled choice absent stronger evidence for
+a corner solution -- it captures most of the favorite-bias correction
+the sweep points toward without fully discarding the goals model.
+
+Re-run the sweep (``scripts/calibrate_blend_weight.py``) as more results
+come in, and revisit this value once the sample is large enough that a
+boundary optimum (if it persists) can be trusted.
 
 Deriving win/draw/loss from Elo
 ----------------------------------
@@ -89,7 +98,7 @@ from __future__ import annotations
 
 from typing import Tuple
 
-DEFAULT_BLEND_WEIGHT = 0.0
+DEFAULT_BLEND_WEIGHT = 0.5
 ELO_HOME_ADVANTAGE = 100.0
 
 
@@ -126,7 +135,8 @@ def blend_outcome_probabilities(
     """Convex-combine (P(home), P(draw), P(away)) from the two signals.
 
     ``blend_weight=1.0`` returns ``poisson_probs`` unchanged;
-    ``blend_weight=0.0`` returns pure Elo -- the calibrated default, see
+    ``blend_weight=0.0`` returns pure Elo. The default (0.5, an even
+    blend) is a deliberate choice, not the sweep's raw minimizer -- see
     the "Calibration finding" section of the module docstring for why.
     """
     if not 0.0 <= blend_weight <= 1.0:

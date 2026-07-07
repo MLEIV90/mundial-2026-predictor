@@ -43,3 +43,9 @@ print(
     f"({int(best['n_fixtures'])} knockout fixtures), so treat this as 'on par with "
     "the market', not 'beats the market'."
 )
+print(
+    "\nNote: DEFAULT_BLEND_WEIGHT in src/blend.py may deliberately differ from this "
+    "raw sweep minimizer -- see that module's 'Calibration finding' section for why "
+    "(a boundary optimum on a small sample is treated with more skepticism than an "
+    "interior one would be)."
+)
