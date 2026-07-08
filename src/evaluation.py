@@ -107,11 +107,14 @@ from src.odds import find_world_cup_fixtures, get_market_probabilities_for_teams
 
 # Empirically determined from the current results.csv structure (no explicit
 # "round" column exists): the first Round-of-32 match kicks off 2026-06-28,
-# and the Round-of-16 window runs 2026-07-04 to 2026-07-06. See the project
-# notebook for how these were derived (matches-per-day breaks in the schedule).
+# the Round-of-16 window ran 2026-07-04 to 2026-07-06 (now complete), and the
+# Quarterfinal window runs 2026-07-09 to 2026-07-11. See the project notebook
+# for how these were derived (matches-per-day breaks in the schedule).
 KNOCKOUT_START_DATE = "2026-06-28"
 ROUND_OF_16_START_DATE = "2026-07-04"
 ROUND_OF_16_END_DATE = "2026-07-06"
+QUARTERFINAL_START_DATE = "2026-07-09"
+QUARTERFINAL_END_DATE = "2026-07-11"
 
 
 def brier_score(y_true, p_pred) -> float:
@@ -726,7 +729,7 @@ if __name__ == "__main__":
         "on par with the market -- not a claim of beating it or of long-run edge."
     )
 
-    unplayed = find_unplayed_fixtures_in_window(matches, ROUND_OF_16_START_DATE, ROUND_OF_16_END_DATE)
+    unplayed = find_unplayed_fixtures_in_window(matches, QUARTERFINAL_START_DATE, QUARTERFINAL_END_DATE)
     print(f"\n{len(unplayed)} unplayed Round-of-16 fixtures found.")
     live_records, _, live_as_of = generate_live_predictions(matches, unplayed)
     save_predictions_json(live_records, "predictions/round_of_16_live.json", live_as_of)

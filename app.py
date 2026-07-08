@@ -101,20 +101,16 @@ def _tie_probs(model, current_ratings: dict, home: str, away: str, neutral: bool
     )
 
 
-# Confirmed round-of-16 ties and quarterfinals (see src/simulation.py for the
-# full bracket definition used by the Monte Carlo simulation).
-R16_TIES = [
-    ("Portugal", "Spain", True),
-    ("United States", "Belgium", False),
-    ("Argentina", "Egypt", True),
-    ("Switzerland", "Colombia", True),
+# Confirmed quarterfinals -- the round of 16 is complete, so all 8
+# quarterfinalists are known (see src/simulation.py for the full bracket
+# definition used by the Monte Carlo simulation). None of the remaining 8
+# teams is a co-host nation, so every tie from here on is neutral.
+QF_TIES = [
+    ("QF1", "France", "Morocco", True),
+    ("QF2", "Spain", "Belgium", True),
+    ("QF3", "Argentina", "Switzerland", True),
+    ("QF4", "England", "Norway", True),
 ]
-# Only QF1 and QF4 are confirmed matchups (both teams already through);
-# QF2/QF3 depend on the still-open round-of-16 ties above.
-CONFIRMED_QF = {
-    0: ("QF1", "France", "Morocco", True),
-    3: ("QF4", "Norway", "England", True),
-}
 
 # Bracket geometry: every position is computed once, in Python, rather than
 # leaned on CSS flexbox auto-layout -- for a fixed-shape tree like this one,
@@ -123,35 +119,29 @@ CONFIRMED_QF = {
 CARD_W = 208
 CARD_H = 62
 COL_GAP = 64
-ROW_STEP = 86  # center-to-center spacing between adjacent Round of 16 cards
+ROW_STEP = 86  # center-to-center spacing between adjacent Quarterfinal cards
 
 
 def _bracket_geometry():
     """Compute (x, y_center) for every card and the connector line segments.
 
-    Only R16 pairs -> QF2/QF3 and QF -> SF -> Final have a real "two
-    children, one parent" relationship in what's rendered (QF1 and QF4 are
-    already-decided ties with no round-of-16 match shown, so they get no
-    incoming connector) -- geometry follows that shape exactly rather than
-    assuming a perfectly symmetric bracket.
+    Every quarterfinal is confirmed (round of 16 complete), so the bracket
+    is a plain, fully symmetric QF -> SF -> Final tree: 4 QF cards evenly
+    spaced, each adjacent pair feeding a semifinal, both semifinals feeding
+    the final.
     """
-    r16_y = [CARD_H / 2 + i * ROW_STEP for i in range(4)]
-    qf2_y = (r16_y[0] + r16_y[1]) / 2
-    qf3_y = (r16_y[2] + r16_y[3]) / 2
-    qf1_y = qf2_y - ROW_STEP
-    qf4_y = qf3_y + ROW_STEP
-    sf1_y = (qf1_y + qf2_y) / 2
-    sf2_y = (qf3_y + qf4_y) / 2
+    qf_y = [CARD_H / 2 + i * ROW_STEP for i in range(4)]
+    sf1_y = (qf_y[0] + qf_y[1]) / 2
+    sf2_y = (qf_y[2] + qf_y[3]) / 2
     final_y = (sf1_y + sf2_y) / 2
 
-    all_y = r16_y + [qf1_y, qf2_y, qf3_y, qf4_y, sf1_y, sf2_y, final_y]
+    all_y = qf_y + [sf1_y, sf2_y, final_y]
     shift = CARD_H / 2 - min(all_y)
 
-    col_x = [i * (CARD_W + COL_GAP) for i in range(4)]
+    col_x = [i * (CARD_W + COL_GAP) for i in range(3)]
 
     return {
-        "r16_y": [y + shift for y in r16_y],
-        "qf_y": [qf1_y + shift, qf2_y + shift, qf3_y + shift, qf4_y + shift],
+        "qf_y": [y + shift for y in qf_y],
         "sf_y": [sf1_y + shift, sf2_y + shift],
         "final_y": final_y + shift,
         "col_x": col_x,
@@ -241,6 +231,7 @@ BRACKET_CSS = f"""
 def render_bracket(model, current_ratings: dict) -> None:
     st.subheader("Remaining Bracket")
     st.caption(
+        "The round of 16 is complete -- the quarterfinals are the current round. "
         "Confirmed ties show the model's P(advance) with the favored team highlighted; "
         "undetermined slots (dashed) show the pending matchup."
     )
@@ -251,7 +242,7 @@ def render_bracket(model, current_ratings: dict) -> None:
     parts = [BRACKET_CSS]
     parts.append(
         '<div class="bx-wrap"><div class="bx-headers">'
-        '<div>Round of 16</div><div>Quarterfinals</div><div>Semifinals</div><div>Final</div>'
+        '<div>Quarterfinals</div><div>Semifinals</div><div>Final</div>'
         "</div>"
     )
     parts.append(f'<div class="bx-canvas" style="height:{geo["total_h"]:.0f}px; width:{geo["total_w"]:.0f}px;">')
@@ -264,41 +255,24 @@ def render_bracket(model, current_ratings: dict) -> None:
             f'<div class="bx-col-bg" style="left:{x - 10:.1f}px; width:{CARD_W + 20}px; height:{band_h:.0f}px;"></div>'
         )
 
-    # Round of 16
-    for i, (home, away, neutral) in enumerate(R16_TIES):
+    # Quarterfinals (all 4 confirmed -- round of 16 is complete)
+    for i, (label, home, away, neutral) in enumerate(QF_TIES):
         adv = _tie_probs(model, current_ratings, home, away, neutral)
         parts.append(
-            _decided_card_html(
-                col_x[0], geo["r16_y"][i], f"R16-{i + 1}", home, away, adv.p_a_advances, adv.p_b_advances
-            )
+            _decided_card_html(col_x[0], geo["qf_y"][i], label, home, away, adv.p_a_advances, adv.p_b_advances)
         )
 
-    # Quarterfinals
-    for i in (0, 3):
-        label, home, away, neutral = CONFIRMED_QF[i]
-        adv = _tie_probs(model, current_ratings, home, away, neutral)
-        parts.append(
-            _decided_card_html(col_x[1], geo["qf_y"][i], label, home, away, adv.p_a_advances, adv.p_b_advances)
-        )
+    # Semifinals + Final (undetermined -- depend on quarterfinal results)
+    parts.append(_pending_card_html(col_x[1], geo["sf_y"][0], "SF1", "Winner QF1", "Winner QF2"))
+    parts.append(_pending_card_html(col_x[1], geo["sf_y"][1], "SF2", "Winner QF3", "Winner QF4"))
+    parts.append(_pending_card_html(col_x[2], geo["final_y"], "Final", "Winner SF1", "Winner SF2"))
 
-    parts.append(_pending_card_html(col_x[1], geo["qf_y"][1], "QF2", "Winner: Portugal / Spain", "Winner: USA / Belgium"))
-    parts.append(_pending_card_html(col_x[1], geo["qf_y"][2], "QF3", "Winner: Argentina / Egypt", "Winner: Switzerland / Colombia"))
-
-    # Semifinals + Final (fully undetermined)
-    parts.append(_pending_card_html(col_x[2], geo["sf_y"][0], "SF1", "Winner QF1", "Winner QF2"))
-    parts.append(_pending_card_html(col_x[2], geo["sf_y"][1], "SF2", "Winner QF3", "Winner QF4"))
-    parts.append(_pending_card_html(col_x[3], geo["final_y"], "Final", "Winner SF1", "Winner SF2"))
-
-    # Connectors: R16 pairs -> QF2/QF3, QF -> SF, SF -> Final
+    # Connectors: QF -> SF, SF -> Final
     card_right = col_x[0] + CARD_W
-    parts.append(_connector_html(geo["r16_y"][0], geo["r16_y"][1], card_right, COL_GAP))
-    parts.append(_connector_html(geo["r16_y"][2], geo["r16_y"][3], card_right, COL_GAP))
-
-    card_right = col_x[1] + CARD_W
     parts.append(_connector_html(geo["qf_y"][0], geo["qf_y"][1], card_right, COL_GAP))
     parts.append(_connector_html(geo["qf_y"][2], geo["qf_y"][3], card_right, COL_GAP))
 
-    card_right = col_x[2] + CARD_W
+    card_right = col_x[1] + CARD_W
     parts.append(_connector_html(geo["sf_y"][0], geo["sf_y"][1], card_right, COL_GAP))
 
     parts.append("</div></div>")

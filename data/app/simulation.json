@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-07T14:11:49.131035+00:00",
-  "as_of_date": "2026-07-07",
+  "generated_at": "2026-07-08T12:17:32.100397+00:00",
+  "as_of_date": "2026-07-08",
   "n_simulations": 20000,
   "bracket": {
     "label": "Final",
@@ -22,24 +22,10 @@
         "label": "QF2",
         "neutral": true,
         "home": {
-          "label": "R16-Portugal-Spain",
-          "neutral": true,
-          "home": {
-            "team": "Portugal"
-          },
-          "away": {
-            "team": "Spain"
-          }
+          "team": "Spain"
         },
         "away": {
-          "label": "R16-USA-Belgium",
-          "neutral": false,
-          "home": {
-            "team": "United States"
-          },
-          "away": {
-            "team": "Belgium"
-          }
+          "team": "Belgium"
         }
       }
     },
@@ -50,34 +36,20 @@
         "label": "QF3",
         "neutral": true,
         "home": {
-          "label": "R16-Argentina-Egypt",
-          "neutral": true,
-          "home": {
-            "team": "Argentina"
-          },
-          "away": {
-            "team": "Egypt"
-          }
+          "team": "Argentina"
         },
         "away": {
-          "label": "R16-Switzerland-Colombia",
-          "neutral": true,
-          "home": {
-            "team": "Switzerland"
-          },
-          "away": {
-            "team": "Colombia"
-          }
+          "team": "Switzerland"
         }
       },
       "away": {
         "label": "QF4",
         "neutral": true,
         "home": {
-          "team": "Norway"
+          "team": "England"
         },
         "away": {
-          "team": "England"
+          "team": "Norway"
         }
       }
     }
@@ -85,87 +57,59 @@
   "results": [
     {
       "team": "Argentina",
-      "p_quarterfinal": 0.8671,
-      "p_semifinal": 0.6101,
-      "p_final": 0.39235,
-      "p_champion": 0.225
+      "p_quarterfinal": 1.0,
+      "p_semifinal": 0.74915,
+      "p_final": 0.4867,
+      "p_champion": 0.2732
     },
     {
       "team": "Spain",
-      "p_quarterfinal": 0.7294,
-      "p_semifinal": 0.5836,
-      "p_final": 0.35775,
-      "p_champion": 0.21945
+      "p_quarterfinal": 1.0,
+      "p_semifinal": 0.74655,
+      "p_final": 0.45575,
+      "p_champion": 0.27065
     },
     {
       "team": "France",
       "p_quarterfinal": 1.0,
-      "p_semifinal": 0.63815,
-      "p_final": 0.34425,
-      "p_champion": 0.1907
+      "p_semifinal": 0.63795,
+      "p_final": 0.32095,
+      "p_champion": 0.1708
     },
     {
       "team": "England",
       "p_quarterfinal": 1.0,
-      "p_semifinal": 0.61015,
-      "p_final": 0.28835,
-      "p_champion": 0.1335
+      "p_semifinal": 0.604,
+      "p_final": 0.27525,
+      "p_champion": 0.1242
     },
     {
       "team": "Morocco",
       "p_quarterfinal": 1.0,
-      "p_semifinal": 0.36185,
-      "p_final": 0.1516,
-      "p_champion": 0.0613
+      "p_semifinal": 0.36205,
+      "p_final": 0.1329,
+      "p_champion": 0.05225
     },
     {
       "team": "Norway",
       "p_quarterfinal": 1.0,
-      "p_semifinal": 0.38985,
-      "p_final": 0.155,
-      "p_champion": 0.05725
-    },
-    {
-      "team": "Colombia",
-      "p_quarterfinal": 0.60495,
-      "p_semifinal": 0.2352,
-      "p_final": 0.1126,
-      "p_champion": 0.04705
-    },
-    {
-      "team": "Portugal",
-      "p_quarterfinal": 0.2706,
-      "p_semifinal": 0.16325,
-      "p_final": 0.0649,
-      "p_champion": 0.02565
+      "p_semifinal": 0.396,
+      "p_final": 0.142,
+      "p_champion": 0.0482
     },
     {
       "team": "Belgium",
-      "p_quarterfinal": 0.6769,
-      "p_semifinal": 0.2092,
-      "p_final": 0.07505,
-      "p_champion": 0.02555
+      "p_quarterfinal": 1.0,
+      "p_semifinal": 0.25345,
+      "p_final": 0.0904,
+      "p_champion": 0.03165
     },
     {
       "team": "Switzerland",
-      "p_quarterfinal": 0.39505,
-      "p_semifinal": 0.12085,
-      "p_final": 0.0444,
-      "p_champion": 0.01245
-    },
-    {
-      "team": "Egypt",
-      "p_quarterfinal": 0.1329,
-      "p_semifinal": 0.03385,
-      "p_final": 0.0073,
-      "p_champion": 0.00135
-    },
-    {
-      "team": "United States",
-      "p_quarterfinal": 0.3231,
-      "p_semifinal": 0.04395,
-      "p_final": 0.00645,
-      "p_champion": 0.00075
+      "p_quarterfinal": 1.0,
+      "p_semifinal": 0.25085,
+      "p_final": 0.09605,
+      "p_champion": 0.02905
     }
   ]
 }

@@ -1,13 +1,13 @@
 {
-  "generated_at": "2026-07-07T14:11:49.131035+00:00",
+  "generated_at": "2026-07-08T12:17:32.100397+00:00",
   "summary": {
-    "n_fixtures": 22,
+    "n_fixtures": 24,
     "n_skipped": 0,
-    "model_brier": 0.14229706217858773,
-    "market_brier": 0.15679812733397933,
-    "model_log_loss": 0.4480046590804169,
-    "market_log_loss": 0.491181492682824,
-    "n_model_beats_market": 14
+    "model_brier": 0.1465764491685847,
+    "market_brier": 0.15898678786271356,
+    "model_log_loss": 0.45569917866379095,
+    "market_log_loss": 0.4949257811173044,
+    "n_model_beats_market": 15
   },
   "fixtures": [
     {
@@ -122,16 +122,6 @@
     },
     {
       "date": "2026-07-02",
-      "home_team": "Spain",
-      "away_team": "Austria",
-      "winner": "Spain",
-      "p_model_home_advances": 0.8336136444,
-      "p_market_home_advances": 0.8082528696,
-      "y_home_advanced": 1,
-      "model_beat_market": true
-    },
-    {
-      "date": "2026-07-02",
       "home_team": "Portugal",
       "away_team": "Croatia",
       "winner": "Portugal",
@@ -139,6 +129,16 @@
       "p_market_home_advances": 0.7027634907,
       "y_home_advanced": 1,
       "model_beat_market": false
+    },
+    {
+      "date": "2026-07-02",
+      "home_team": "Spain",
+      "away_team": "Austria",
+      "winner": "Spain",
+      "p_model_home_advances": 0.8336136444,
+      "p_market_home_advances": 0.8082528696,
+      "y_home_advanced": 1,
+      "model_beat_market": true
     },
     {
       "date": "2026-07-03",
@@ -229,6 +229,26 @@
       "p_market_home_advances": 0.5026961883,
       "y_home_advanced": 0,
       "model_beat_market": true
+    },
+    {
+      "date": "2026-07-07",
+      "home_team": "Argentina",
+      "away_team": "Egypt",
+      "winner": "Argentina",
+      "p_model_home_advances": 0.8643290164,
+      "p_market_home_advances": 0.7938676112,
+      "y_home_advanced": 1,
+      "model_beat_market": true
+    },
+    {
+      "date": "2026-07-07",
+      "home_team": "Switzerland",
+      "away_team": "Colombia",
+      "winner": "Switzerland",
+      "p_model_home_advances": 0.3926345447,
+      "p_market_home_advances": 0.4311120096,
+      "y_home_advanced": 1,
+      "model_beat_market": false
     }
   ]
 }

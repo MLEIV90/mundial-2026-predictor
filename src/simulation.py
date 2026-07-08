@@ -8,12 +8,13 @@ winning the title outright.
 The bracket
 -----------
 ``build_remaining_bracket`` hardcodes the actual remaining bracket as of
-the round of 16: QF1 (France vs Morocco) and QF4 (Norway vs England) are
-already decided; the other four quarterfinalists are still to be
-determined by the round-of-16 ties (Portugal/Spain, USA/Belgium,
-Argentina/Egypt, Switzerland/Colombia). It's a tree of ``Tie`` nodes,
-where each side is either a confirmed team name or another (still to be
-played) ``Tie`` whose winner fills that slot.
+the quarterfinals (the round of 16 is complete): all 8 quarterfinalists
+are confirmed -- QF1 France vs Morocco, QF2 Spain vs Belgium, QF3
+Argentina vs Switzerland, QF4 England vs Norway. It's a tree of ``Tie``
+nodes, where each side is either a confirmed team name or another (still
+to be played) ``Tie`` whose winner fills that slot -- currently every
+leaf is a confirmed team, since nothing is still to be determined above
+the quarterfinal round.
 
 How a single simulation run works
 -----------------------------------
@@ -93,29 +94,26 @@ def _stage_of(label: str) -> Optional[str]:
 
 
 def build_remaining_bracket() -> Tie:
-    """The actual remaining 2026 World Cup bracket, as of the round of 16."""
+    """The actual remaining 2026 World Cup bracket, as of the quarterfinals.
+
+    The round of 16 is complete, so all 8 quarterfinalists are confirmed
+    and every leaf below is a plain team name -- none of the QF/SF/Final
+    ties are still waiting on an earlier round to resolve. None of the
+    remaining 8 teams is a co-host nation (USA, Canada, Mexico were all
+    eliminated in earlier rounds), so every tie from here on is neutral.
+    """
     return Tie(
         "Final",
         home=Tie(
             "SF1",
             home=Tie("QF1", home="France", away="Morocco", neutral=True),
-            away=Tie(
-                "QF2",
-                home=Tie("R16-Portugal-Spain", home="Portugal", away="Spain", neutral=True),
-                away=Tie("R16-USA-Belgium", home="United States", away="Belgium", neutral=False),
-                neutral=True,
-            ),
+            away=Tie("QF2", home="Spain", away="Belgium", neutral=True),
             neutral=True,
         ),
         away=Tie(
             "SF2",
-            home=Tie(
-                "QF3",
-                home=Tie("R16-Argentina-Egypt", home="Argentina", away="Egypt", neutral=True),
-                away=Tie("R16-Switzerland-Colombia", home="Switzerland", away="Colombia", neutral=True),
-                neutral=True,
-            ),
-            away=Tie("QF4", home="Norway", away="England", neutral=True),
+            home=Tie("QF3", home="Argentina", away="Switzerland", neutral=True),
+            away=Tie("QF4", home="England", away="Norway", neutral=True),
             neutral=True,
         ),
         neutral=True,

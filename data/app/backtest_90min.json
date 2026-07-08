@@ -1,13 +1,13 @@
 {
-  "generated_at": "2026-07-07T14:11:49.131035+00:00",
+  "generated_at": "2026-07-08T12:17:32.100397+00:00",
   "summary": {
-    "n_fixtures": 22,
+    "n_fixtures": 24,
     "n_skipped": 0,
-    "model_brier": 0.38397196159376695,
-    "market_brier": 0.4068100387634338,
-    "model_log_loss": 0.6967394462115009,
-    "market_log_loss": 0.7226493407474145,
-    "n_model_beats_market": 14
+    "model_brier": 0.3914713049291893,
+    "market_brier": 0.4089064637929627,
+    "model_log_loss": 0.7075555769187819,
+    "market_log_loss": 0.7261154737936204,
+    "n_model_beats_market": 15
   },
   "fixtures": [
     {
@@ -166,20 +166,6 @@
     },
     {
       "date": "2026-07-02",
-      "home_team": "Spain",
-      "away_team": "Austria",
-      "result": "Home win",
-      "model_p_home": 0.726656776,
-      "model_p_draw": 0.1669912491,
-      "model_p_away": 0.1063519749,
-      "market_p_home": 0.7137961551,
-      "market_p_draw": 0.188913429,
-      "market_p_away": 0.0972904159,
-      "outcome_idx": 0,
-      "model_beat_market": true
-    },
-    {
-      "date": "2026-07-02",
       "home_team": "Portugal",
       "away_team": "Croatia",
       "result": "Home win",
@@ -191,6 +177,20 @@
       "market_p_away": 0.1647603123,
       "outcome_idx": 0,
       "model_beat_market": false
+    },
+    {
+      "date": "2026-07-02",
+      "home_team": "Spain",
+      "away_team": "Austria",
+      "result": "Home win",
+      "model_p_home": 0.726656776,
+      "model_p_draw": 0.1669912491,
+      "model_p_away": 0.1063519749,
+      "market_p_home": 0.7137961551,
+      "market_p_draw": 0.188913429,
+      "market_p_away": 0.0972904159,
+      "outcome_idx": 0,
+      "model_beat_market": true
     },
     {
       "date": "2026-07-03",
@@ -317,6 +317,34 @@
       "market_p_away": 0.3585930378,
       "outcome_idx": 2,
       "model_beat_market": true
+    },
+    {
+      "date": "2026-07-07",
+      "home_team": "Argentina",
+      "away_team": "Egypt",
+      "result": "Home win",
+      "model_p_home": 0.7593671485,
+      "model_p_draw": 0.1617572479,
+      "model_p_away": 0.0788756036,
+      "market_p_home": 0.6918491737,
+      "market_p_draw": 0.204036875,
+      "market_p_away": 0.1041139513,
+      "outcome_idx": 0,
+      "model_beat_market": true
+    },
+    {
+      "date": "2026-07-07",
+      "home_team": "Switzerland",
+      "away_team": "Colombia",
+      "result": "Draw",
+      "model_p_home": 0.2772868873,
+      "model_p_draw": 0.252133609,
+      "model_p_away": 0.4705795037,
+      "market_p_home": 0.2743843686,
+      "market_p_draw": 0.3134552819,
+      "market_p_away": 0.4121603494,
+      "outcome_idx": 1,
+      "model_beat_market": false
     }
   ]
 }

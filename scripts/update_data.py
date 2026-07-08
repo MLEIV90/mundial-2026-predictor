@@ -35,8 +35,8 @@ from src.data import load_results
 from src.elo import compute_elo_ratings, top_teams
 from src.evaluation import (
     KNOCKOUT_START_DATE,
-    ROUND_OF_16_END_DATE,
-    ROUND_OF_16_START_DATE,
+    QUARTERFINAL_END_DATE,
+    QUARTERFINAL_START_DATE,
     backtest_90min_fixtures,
     backtest_knockout_fixtures,
     find_unplayed_fixtures_in_window,
@@ -113,8 +113,8 @@ def main() -> None:
         "signal, not a claim of long-run edge over the market."
     )
 
-    print("Generating live predictions for upcoming round-of-16 fixtures...")
-    unplayed = find_unplayed_fixtures_in_window(matches, ROUND_OF_16_START_DATE, ROUND_OF_16_END_DATE)
+    print("Generating live predictions for upcoming quarterfinal fixtures...")
+    unplayed = find_unplayed_fixtures_in_window(matches, QUARTERFINAL_START_DATE, QUARTERFINAL_END_DATE)
     live_records, live_model, live_as_of = generate_live_predictions(
         matches, unplayed, blend_weight=DEFAULT_BLEND_WEIGHT
     )
