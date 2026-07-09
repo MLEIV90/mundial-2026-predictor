@@ -1,12 +1,12 @@
 {
-  "generated_at": "2026-07-08T12:17:32.100397+00:00",
+  "generated_at": "2026-07-09T22:12:30.095439+00:00",
   "summary": {
     "n_fixtures": 24,
     "n_skipped": 0,
-    "model_brier": 0.1465764491685847,
-    "market_brier": 0.15898678786271356,
-    "model_log_loss": 0.45569917866379095,
-    "market_log_loss": 0.4949257811173044,
+    "model_brier": 0.1473555930413086,
+    "market_brier": 0.1588051946492864,
+    "model_log_loss": 0.4573579665469074,
+    "market_log_loss": 0.49414261275158355,
     "n_model_beats_market": 15
   },
   "fixtures": [
@@ -15,7 +15,7 @@
       "home_team": "South Africa",
       "away_team": "Canada",
       "winner": "Canada",
-      "p_model_home_advances": 0.3016554641,
+      "p_model_home_advances": 0.3006612894,
       "p_market_home_advances": 0.3372978181,
       "y_home_advanced": 0,
       "model_beat_market": true
@@ -25,7 +25,7 @@
       "home_team": "Brazil",
       "away_team": "Japan",
       "winner": "Brazil",
-      "p_model_home_advances": 0.6121136045,
+      "p_model_home_advances": 0.6023577747,
       "p_market_home_advances": 0.6810187038,
       "y_home_advanced": 1,
       "model_beat_market": false
@@ -35,7 +35,7 @@
       "home_team": "Germany",
       "away_team": "Paraguay",
       "winner": "Paraguay",
-      "p_model_home_advances": 0.6169538455,
+      "p_model_home_advances": 0.6216814963,
       "p_market_home_advances": 0.8179018599,
       "y_home_advanced": 0,
       "model_beat_market": true
@@ -45,7 +45,7 @@
       "home_team": "Netherlands",
       "away_team": "Morocco",
       "winner": "Morocco",
-      "p_model_home_advances": 0.4845960926,
+      "p_model_home_advances": 0.4933817098,
       "p_market_home_advances": 0.5500762296,
       "y_home_advanced": 0,
       "model_beat_market": true
@@ -55,7 +55,7 @@
       "home_team": "Ivory Coast",
       "away_team": "Norway",
       "winner": "Norway",
-      "p_model_home_advances": 0.3260255684,
+      "p_model_home_advances": 0.3260255681,
       "p_market_home_advances": 0.4005861343,
       "y_home_advanced": 0,
       "model_beat_market": true
@@ -65,7 +65,7 @@
       "home_team": "France",
       "away_team": "Sweden",
       "winner": "France",
-      "p_model_home_advances": 0.8963431752,
+      "p_model_home_advances": 0.896343176,
       "p_market_home_advances": 0.8296228704,
       "y_home_advanced": 1,
       "model_beat_market": true
@@ -75,7 +75,7 @@
       "home_team": "Mexico",
       "away_team": "Ecuador",
       "winner": "Mexico",
-      "p_model_home_advances": 0.6314368811,
+      "p_model_home_advances": 0.6314368833,
       "p_market_home_advances": 0.5853777808,
       "y_home_advanced": 1,
       "model_beat_market": true
@@ -85,7 +85,7 @@
       "home_team": "England",
       "away_team": "DR Congo",
       "winner": "England",
-      "p_model_home_advances": 0.7956298554,
+      "p_model_home_advances": 0.8045615854,
       "p_market_home_advances": 0.8348641143,
       "y_home_advanced": 1,
       "model_beat_market": false
@@ -95,7 +95,7 @@
       "home_team": "Belgium",
       "away_team": "Senegal",
       "winner": "Belgium",
-      "p_model_home_advances": 0.5726321194,
+      "p_model_home_advances": 0.5730926739,
       "p_market_home_advances": 0.6365764226,
       "y_home_advanced": 1,
       "model_beat_market": false
@@ -105,7 +105,7 @@
       "home_team": "United States",
       "away_team": "Bosnia and Herzegovina",
       "winner": "United States",
-      "p_model_home_advances": 0.8252421094,
+      "p_model_home_advances": 0.8190631222,
       "p_market_home_advances": 0.7970257316,
       "y_home_advanced": 1,
       "model_beat_market": true
@@ -115,7 +115,7 @@
       "home_team": "Switzerland",
       "away_team": "Algeria",
       "winner": "Switzerland",
-      "p_model_home_advances": 0.6136025508,
+      "p_model_home_advances": 0.6134975761,
       "p_market_home_advances": 0.6299936336,
       "y_home_advanced": 1,
       "model_beat_market": false
@@ -125,7 +125,7 @@
       "home_team": "Portugal",
       "away_team": "Croatia",
       "winner": "Portugal",
-      "p_model_home_advances": 0.6507795964,
+      "p_model_home_advances": 0.6492716681,
       "p_market_home_advances": 0.7027634907,
       "y_home_advanced": 1,
       "model_beat_market": false
@@ -135,7 +135,7 @@
       "home_team": "Spain",
       "away_team": "Austria",
       "winner": "Spain",
-      "p_model_home_advances": 0.8336136444,
+      "p_model_home_advances": 0.8328643694,
       "p_market_home_advances": 0.8082528696,
       "y_home_advanced": 1,
       "model_beat_market": true
@@ -145,7 +145,7 @@
       "home_team": "Australia",
       "away_team": "Egypt",
       "winner": "Egypt",
-      "p_model_home_advances": 0.5695027158,
+      "p_model_home_advances": 0.5684055272,
       "p_market_home_advances": 0.4377748371,
       "y_home_advanced": 0,
       "model_beat_market": false
@@ -155,7 +155,7 @@
       "home_team": "Argentina",
       "away_team": "Cape Verde",
       "winner": "Argentina",
-      "p_model_home_advances": 0.9486896013,
+      "p_model_home_advances": 0.9476572467,
       "p_market_home_advances": 0.8954572172,
       "y_home_advanced": 1,
       "model_beat_market": true
@@ -165,7 +165,7 @@
       "home_team": "Colombia",
       "away_team": "Ghana",
       "winner": "Colombia",
-      "p_model_home_advances": 0.9052090294,
+      "p_model_home_advances": 0.9051857332,
       "p_market_home_advances": 0.7731723708,
       "y_home_advanced": 1,
       "model_beat_market": true
@@ -175,7 +175,7 @@
       "home_team": "Canada",
       "away_team": "Morocco",
       "winner": "Morocco",
-      "p_model_home_advances": 0.3059265248,
+      "p_model_home_advances": 0.3059254941,
       "p_market_home_advances": 0.3281155898,
       "y_home_advanced": 0,
       "model_beat_market": true
@@ -185,7 +185,7 @@
       "home_team": "Paraguay",
       "away_team": "France",
       "winner": "France",
-      "p_model_home_advances": 0.1966371478,
+      "p_model_home_advances": 0.1967412458,
       "p_market_home_advances": 0.129787234,
       "y_home_advanced": 0,
       "model_beat_market": false
@@ -195,7 +195,7 @@
       "home_team": "Brazil",
       "away_team": "Norway",
       "winner": "Norway",
-      "p_model_home_advances": 0.6263220484,
+      "p_model_home_advances": 0.6270788075,
       "p_market_home_advances": 0.6757989269,
       "y_home_advanced": 0,
       "model_beat_market": true
@@ -205,7 +205,7 @@
       "home_team": "Mexico",
       "away_team": "England",
       "winner": "England",
-      "p_model_home_advances": 0.5144461736,
+      "p_model_home_advances": 0.5205367789,
       "p_market_home_advances": 0.4606102809,
       "y_home_advanced": 0,
       "model_beat_market": false
@@ -215,8 +215,8 @@
       "home_team": "Portugal",
       "away_team": "Spain",
       "winner": "Spain",
-      "p_model_home_advances": 0.3120503247,
-      "p_market_home_advances": 0.372043354,
+      "p_model_home_advances": 0.3121289416,
+      "p_market_home_advances": 0.3766005792,
       "y_home_advanced": 0,
       "model_beat_market": true
     },
@@ -225,8 +225,8 @@
       "home_team": "United States",
       "away_team": "Belgium",
       "winner": "Belgium",
-      "p_model_home_advances": 0.4942980857,
-      "p_market_home_advances": 0.5026961883,
+      "p_model_home_advances": 0.4875743012,
+      "p_market_home_advances": 0.51764807,
       "y_home_advanced": 0,
       "model_beat_market": true
     },
@@ -235,8 +235,8 @@
       "home_team": "Argentina",
       "away_team": "Egypt",
       "winner": "Argentina",
-      "p_model_home_advances": 0.8643290164,
-      "p_market_home_advances": 0.7938676112,
+      "p_model_home_advances": 0.8632592174,
+      "p_market_home_advances": 0.8157236823,
       "y_home_advanced": 1,
       "model_beat_market": true
     },
@@ -245,8 +245,8 @@
       "home_team": "Switzerland",
       "away_team": "Colombia",
       "winner": "Switzerland",
-      "p_model_home_advances": 0.3926345447,
-      "p_market_home_advances": 0.4311120096,
+      "p_model_home_advances": 0.3945533494,
+      "p_market_home_advances": 0.4439961302,
       "y_home_advanced": 1,
       "model_beat_market": false
     }

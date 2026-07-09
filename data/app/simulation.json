@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-08T12:17:32.100397+00:00",
+  "generated_at": "2026-07-09T22:12:30.095439+00:00",
   "as_of_date": "2026-07-08",
   "n_simulations": 20000,
   "bracket": {
@@ -58,58 +58,58 @@
     {
       "team": "Argentina",
       "p_quarterfinal": 1.0,
-      "p_semifinal": 0.74915,
-      "p_final": 0.4867,
-      "p_champion": 0.2732
+      "p_semifinal": 0.74925,
+      "p_final": 0.48215,
+      "p_champion": 0.27125
     },
     {
       "team": "Spain",
       "p_quarterfinal": 1.0,
-      "p_semifinal": 0.74655,
-      "p_final": 0.45575,
-      "p_champion": 0.27065
+      "p_semifinal": 0.74555,
+      "p_final": 0.45475,
+      "p_champion": 0.26785
     },
     {
       "team": "France",
       "p_quarterfinal": 1.0,
-      "p_semifinal": 0.63795,
-      "p_final": 0.32095,
-      "p_champion": 0.1708
+      "p_semifinal": 0.62985,
+      "p_final": 0.31595,
+      "p_champion": 0.165
     },
     {
       "team": "England",
       "p_quarterfinal": 1.0,
-      "p_semifinal": 0.604,
-      "p_final": 0.27525,
-      "p_champion": 0.1242
+      "p_semifinal": 0.61625,
+      "p_final": 0.2858,
+      "p_champion": 0.13415
     },
     {
       "team": "Morocco",
       "p_quarterfinal": 1.0,
-      "p_semifinal": 0.36205,
-      "p_final": 0.1329,
-      "p_champion": 0.05225
+      "p_semifinal": 0.37015,
+      "p_final": 0.13835,
+      "p_champion": 0.0548
     },
     {
       "team": "Norway",
       "p_quarterfinal": 1.0,
-      "p_semifinal": 0.396,
-      "p_final": 0.142,
-      "p_champion": 0.0482
+      "p_semifinal": 0.38375,
+      "p_final": 0.13775,
+      "p_champion": 0.04665
     },
     {
       "team": "Belgium",
       "p_quarterfinal": 1.0,
-      "p_semifinal": 0.25345,
-      "p_final": 0.0904,
-      "p_champion": 0.03165
+      "p_semifinal": 0.25445,
+      "p_final": 0.09095,
+      "p_champion": 0.0316
     },
     {
       "team": "Switzerland",
       "p_quarterfinal": 1.0,
-      "p_semifinal": 0.25085,
-      "p_final": 0.09605,
-      "p_champion": 0.02905
+      "p_semifinal": 0.25075,
+      "p_final": 0.0943,
+      "p_champion": 0.0287
     }
   ]
 }

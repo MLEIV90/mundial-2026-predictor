@@ -1,20 +1,7 @@
 {
-  "generated_at": "2026-07-08T12:17:32.100397+00:00",
+  "generated_at": "2026-07-09T22:12:30.095439+00:00",
   "model_as_of_date": "2026-07-08",
   "predictions": [
-    {
-      "date": "2026-07-09",
-      "home_team": "France",
-      "away_team": "Morocco",
-      "neutral": true,
-      "home_elo_pre": 2206.7922653150836,
-      "away_elo_pre": 2056.0103601805263,
-      "model_p_home_advances": 0.6378556120278613,
-      "model_p_away_advances": 0.36214438797213866,
-      "market_p_home_advances": 0.7278193281022098,
-      "market_p_away_advances": 0.27218067189779016,
-      "market_source": "pinnacle"
-    },
     {
       "date": "2026-07-10",
       "home_team": "Spain",
@@ -22,10 +9,10 @@
       "neutral": true,
       "home_elo_pre": 2242.4104880970817,
       "away_elo_pre": 2041.595039261015,
-      "model_p_home_advances": 0.7522991551678165,
-      "model_p_away_advances": 0.24770084483218355,
-      "market_p_home_advances": 0.711408801116372,
-      "market_p_away_advances": 0.28859119888362805,
+      "model_p_home_advances": 0.7512282054858946,
+      "model_p_away_advances": 0.24877179451410547,
+      "market_p_home_advances": 0.7040427713490552,
+      "market_p_away_advances": 0.29595722865094476,
       "market_source": "pinnacle"
     },
     {
@@ -35,10 +22,10 @@
       "neutral": true,
       "home_elo_pre": 2041.9805909165127,
       "away_elo_pre": 2150.0524148730588,
-      "model_p_home_advances": 0.3945756303199443,
-      "model_p_away_advances": 0.6054243696800556,
-      "market_p_home_advances": 0.35108370690617874,
-      "market_p_away_advances": 0.6489162930938215,
+      "model_p_home_advances": 0.3822216492925309,
+      "model_p_away_advances": 0.6177783507074691,
+      "market_p_home_advances": 0.3539696338495065,
+      "market_p_away_advances": 0.6460303661504935,
       "market_source": "pinnacle"
     },
     {
@@ -48,10 +35,10 @@
       "neutral": true,
       "home_elo_pre": 2234.3852496776676,
       "away_elo_pre": 2024.0072066370496,
-      "model_p_home_advances": 0.7512768570008374,
-      "model_p_away_advances": 0.24872314299916268,
-      "market_p_home_advances": 0.6937879574584765,
-      "market_p_away_advances": 0.30621204254152345,
+      "model_p_home_advances": 0.7513289935391234,
+      "model_p_away_advances": 0.24867100646087648,
+      "market_p_home_advances": 0.6985668148711515,
+      "market_p_away_advances": 0.3014331851288486,
       "market_source": "pinnacle"
     }
   ]
