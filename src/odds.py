@@ -44,9 +44,24 @@ quote a complete 1X2 price for that fixture, and *then* de-vigged.
 
 Rate limiting
 -------------
-Every actual network call is followed by a fixed cooldown sleep
-(``API_COOLDOWN_SECONDS``, default 0.88s) to stay under the API's
-per-request rate limit. This never applies to cache hits.
+Every actual network call is throttled to a guaranteed minimum interval
+(``MIN_REQUEST_INTERVAL_SECONDS``) since the *start* of the previous real
+request, tracked in a module-level timestamp rather than a fixed
+post-request sleep -- a fixed sleep only bounds the gap between the *end*
+of one call and the *start* of the next, so bursts of several call sites
+in a row (e.g. resolving a fixture, then its odds, then its historical
+odds as a fallback) can still land requests closer together than the
+API's own per-request limit if there's any variance in processing time.
+This never applies to cache hits.
+
+On an HTTP 429 (rate limited), ``_request`` retries automatically: it
+reads how long the API wants us to wait (from the ``Retry-After`` header
+or a ``retryAfter``/``retryMs`` field in the response body, whichever is
+present), sleeps at least that long, and tries again, up to
+``MAX_RETRY_ATTEMPTS`` times with the wait floor growing exponentially
+attempt over attempt (in case the reported wait is unhelpfully small or
+the limit is being hit repeatedly for other reasons). Only once every
+attempt is exhausted does it raise ``OddsApiRateLimitError``.
 """
 
 from __future__ import annotations
@@ -68,10 +83,21 @@ OUTCOME_HOME = "101"
 OUTCOME_DRAW = "102"
 OUTCOME_AWAY = "103"
 
-API_COOLDOWN_SECONDS = 0.88
+# OddsPapi's own limit is ~0.87s between requests; a little margin above
+# that absorbs clock/scheduling jitter (a bare 0.88s margin was tight
+# enough to occasionally 429 in CI -- see _throttle()).
+MIN_REQUEST_INTERVAL_SECONDS = 1.0
 REQUEST_TIMEOUT_SECONDS = 30
 
+MAX_RETRY_ATTEMPTS = 5
+RETRY_BACKOFF_BASE_SECONDS = 1.0
+RETRY_BACKOFF_MAX_SECONDS = 30.0
+
 CACHE_DIR = Path("data/odds_cache")
+
+# Timestamp (time.monotonic()) of the start of the last real HTTP request
+# made to OddsPapi, across every call site -- see _throttle().
+_last_request_time: Optional[float] = None
 
 
 class OddsApiError(Exception):
@@ -107,29 +133,103 @@ def _get_api_key() -> str:
     return api_key
 
 
+def _throttle() -> None:
+    """Block, if needed, until at least MIN_REQUEST_INTERVAL_SECONDS has
+    elapsed since the start of the last real HTTP request, then record
+    "now" as the new last-request time.
+
+    Tracking this in a module-level timestamp (rather than sleeping a
+    fixed amount after every call) enforces the gap between *every* pair
+    of consecutive requests regardless of which function issued them or
+    how much processing happened in between.
+    """
+    global _last_request_time
+    now = time.monotonic()
+    if _last_request_time is not None:
+        remaining = MIN_REQUEST_INTERVAL_SECONDS - (now - _last_request_time)
+        if remaining > 0:
+            time.sleep(remaining)
+            now = time.monotonic()
+    _last_request_time = now
+
+
+def _parse_retry_after(response: requests.Response) -> float:
+    """Best-effort extraction of how long OddsPapi wants us to wait before
+    retrying a 429, in seconds. Checks the standard ``Retry-After`` header
+    first, then common response-body field names (seconds or
+    milliseconds); falls back to MIN_REQUEST_INTERVAL_SECONDS if none of
+    them are present or parseable.
+    """
+    header_value = response.headers.get("Retry-After")
+    if header_value is not None:
+        try:
+            return max(float(header_value), 0.0)
+        except ValueError:
+            pass
+
+    try:
+        body = response.json()
+    except ValueError:
+        body = {}
+
+    for key in ("retryAfter", "retry_after"):
+        value = body.get(key) if isinstance(body, dict) else None
+        if isinstance(value, (int, float)):
+            return max(float(value), 0.0)
+
+    for key in ("retryMs", "retry_ms"):
+        value = body.get(key) if isinstance(body, dict) else None
+        if isinstance(value, (int, float)):
+            return max(float(value) / 1000.0, 0.0)
+
+    return MIN_REQUEST_INTERVAL_SECONDS
+
+
 def _request(path: str, params: dict) -> dict:
-    """GET against the OddsPapi API, with the API key attached and a fixed
-    post-request cooldown sleep to respect the free-tier rate limit.
+    """GET against the OddsPapi API, with the API key attached, a
+    guaranteed minimum interval before every request (see ``_throttle``),
+    and automatic retry with backoff on a 429 (rate limited).
     """
     query = dict(params)
     query["apiKey"] = _get_api_key()
 
-    response = requests.get(f"{BASE_URL}{path}", params=query, timeout=REQUEST_TIMEOUT_SECONDS)
-    time.sleep(API_COOLDOWN_SECONDS)
+    for attempt in range(1, MAX_RETRY_ATTEMPTS + 1):
+        _throttle()
+        response = requests.get(f"{BASE_URL}{path}", params=query, timeout=REQUEST_TIMEOUT_SECONDS)
 
-    if response.status_code == 429:
-        raise OddsApiRateLimitError(f"Rate limited by OddsPapi calling {path}: {response.text}")
-    if response.status_code == 404:
-        raise FixtureNotFoundError(f"Not found calling {path} with {params}: {response.text}")
-    if not response.ok:
-        # requests' default HTTPError message embeds the full request URL,
-        # which would leak the API key (passed as a query param) into logs
-        # and tracebacks -- raise a redacted error instead, with no
-        # exception chaining back to anything that holds the URL.
-        raise OddsApiError(
-            f"OddsPapi request to {path} with {params} failed: HTTP {response.status_code}"
-        ) from None
-    return response.json()
+        if response.status_code == 429:
+            if attempt == MAX_RETRY_ATTEMPTS:
+                raise OddsApiRateLimitError(
+                    f"Rate limited by OddsPapi calling {path} after {MAX_RETRY_ATTEMPTS} attempts."
+                )
+            # Wait at least as long as the API told us to (if it told us),
+            # with a floor that grows exponentially attempt over attempt --
+            # never a busy-loop, and never depends only on a possibly-tiny
+            # reported wait. Never logs `query`/the API key, only the path
+            # and how long we're backing off.
+            reported_wait = _parse_retry_after(response)
+            backoff_floor = min(
+                RETRY_BACKOFF_BASE_SECONDS * (2 ** (attempt - 1)), RETRY_BACKOFF_MAX_SECONDS
+            )
+            wait_seconds = max(reported_wait, backoff_floor)
+            print(
+                f"  Rate limited by OddsPapi calling {path} "
+                f"(attempt {attempt}/{MAX_RETRY_ATTEMPTS}) -- backing off {wait_seconds:.2f}s."
+            )
+            time.sleep(wait_seconds)
+            continue
+
+        if response.status_code == 404:
+            raise FixtureNotFoundError(f"Not found calling {path} with {params}: {response.text}")
+        if not response.ok:
+            # requests' default HTTPError message embeds the full request URL,
+            # which would leak the API key (passed as a query param) into logs
+            # and tracebacks -- raise a redacted error instead, with no
+            # exception chaining back to anything that holds the URL.
+            raise OddsApiError(
+                f"OddsPapi request to {path} with {params} failed: HTTP {response.status_code}"
+            ) from None
+        return response.json()
 
 
 def _cache_get(cache_key: str):
