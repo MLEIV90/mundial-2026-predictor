@@ -23,9 +23,14 @@ Endpoints used (see https://oddspapi.io/en/docs)
   ``101``, with outcome ids ``101``/``102``/``103`` for home/draw/away.
   Only has data for fixtures that haven't kicked off yet -- once a match
   starts (or finishes) this returns ``hasOdds: False`` with no prices.
+  **Not included in every plan tier**: on a plan without it, every call
+  returns HTTP 403 (see ``OddsApiAccessError`` below), regardless of
+  fixture status -- ``get_fixture_market_probabilities`` treats that the
+  same as "no live odds" and falls straight to ``/v4/historical-odds``.
 - ``GET /v4/historical-odds`` -- fallback for already-started/finished
-  fixtures: the full time series of price updates per outcome, capped to
-  3 bookmaker slugs per call (defaults to Pinnacle only here). This
+  fixtures (or for any fixture at all, on a plan without ``/v4/odds``):
+  the full time series of price updates per outcome, capped to 3
+  bookmaker slugs per call (defaults to Pinnacle only here). This
   series keeps going into live play (and past full time), so the closing
   (final pre-kickoff) price is the last entry *before* the fixture's
   kickoff time, not simply the last entry overall -- see
@@ -117,6 +122,13 @@ class OddsApiAuthError(OddsApiError):
 
 class OddsApiRateLimitError(OddsApiError):
     """Raised on an HTTP 429 (monthly quota or rate limit exceeded)."""
+
+
+class OddsApiAccessError(OddsApiError):
+    """Raised on an HTTP 403 -- the endpoint isn't included in the
+    current OddsPapi plan (e.g. live/current odds via ``/v4/odds`` is a
+    paid-tier feature on some plans; ``/v4/historical-odds`` is not).
+    """
 
 
 class FixtureNotFoundError(OddsApiError):
@@ -226,6 +238,12 @@ def _request(path: str, params: dict) -> dict:
             time.sleep(wait_seconds)
             continue
 
+        if response.status_code == 403:
+            raise OddsApiAccessError(
+                f"OddsPapi returned 403 Forbidden for {path} -- this endpoint is "
+                "likely not included in the current API plan. See "
+                "https://oddspapi.io/en/pricing for plan/endpoint availability."
+            ) from None
         if response.status_code == 404:
             raise FixtureNotFoundError(f"Not found calling {path} with {params}: {response.text}")
         if not response.ok:
@@ -258,6 +276,12 @@ def fetch_fixture_odds(fixture_id: str, force_refresh: bool = False) -> dict:
     that file already exists, it is returned directly and the API is
     never called (and no API key is required). Pass ``force_refresh=True``
     to bypass the cache and re-fetch from the API.
+
+    Raises ``OddsApiAccessError`` (HTTP 403) if ``/v4/odds`` isn't
+    included in the current OddsPapi plan -- callers that want the
+    historical-odds fallback for that case should use
+    ``get_fixture_market_probabilities`` instead of calling this
+    directly.
     """
     cache_key = f"fixture_{fixture_id}"
     if not force_refresh:
@@ -384,7 +408,10 @@ def get_market_probabilities_for_teams(
     fixture_id = find_fixture_id_by_teams(fixtures, home_team, away_team)
     if fixture_id is None:
         return None
-    return get_fixture_market_probabilities(fixture_id, force_refresh=force_refresh)
+    fixture_meta = next((f for f in fixtures if f.get("fixtureId") == fixture_id), None)
+    return get_fixture_market_probabilities(
+        fixture_id, force_refresh=force_refresh, fixture_meta=fixture_meta
+    )
 
 
 def devig_1x2(home_odds: float, draw_odds: float, away_odds: float) -> Tuple[float, float, float]:
@@ -559,34 +586,52 @@ class MarketOdds:
     p_away: float
 
 
-def get_fixture_market_probabilities(fixture_id: str, force_refresh: bool = False) -> MarketOdds:
+def get_fixture_market_probabilities(
+    fixture_id: str, force_refresh: bool = False, fixture_meta: Optional[dict] = None
+) -> MarketOdds:
     """Fetch (from cache if possible) and de-vig 1X2 odds for one fixture.
 
-    Tries the live pre-game odds first (``/v4/odds``); if the fixture has
-    already kicked off and that endpoint has nothing (``hasOdds: False``),
-    falls back to the closing line from ``/v4/historical-odds``.
+    Tries the live pre-game odds first (``/v4/odds``); falls back to the
+    closing line from ``/v4/historical-odds`` in either of two cases:
+    the fixture has already kicked off and ``/v4/odds`` has nothing
+    (``hasOdds: False``), or ``/v4/odds`` isn't available on the current
+    OddsPapi plan at all (``OddsApiAccessError``, HTTP 403) -- both are
+    treated the same way, since either way there's no live price to use.
+
+    ``fixture_meta`` (optional) is a raw fixture dict from
+    ``find_world_cup_fixtures`` -- used only as a fallback source of the
+    team names/kickoff time needed for the historical-odds path and the
+    returned ``MarketOdds`` when the ``/v4/odds`` call fails outright
+    (403) and so never returns that metadata itself. Without it, a 403
+    still falls back correctly as long as ``/v4/historical-odds`` itself
+    reports enough to filter to the pre-kickoff price.
 
     Returns a ``MarketOdds`` with the teams, kickoff date, which
     bookmaker(s) the odds came from, the raw decimal odds used, and the
     de-vigged market-implied P(home)/P(draw)/P(away).
     """
-    raw = fetch_fixture_odds(fixture_id, force_refresh=force_refresh)
+    try:
+        raw: Optional[dict] = fetch_fixture_odds(fixture_id, force_refresh=force_refresh)
+    except OddsApiAccessError:
+        raw = None
 
-    if raw.get("bookmakerOdds"):
+    if raw is not None and raw.get("bookmakerOdds"):
         home_odds, draw_odds, away_odds, source = _extract_1x2_odds(raw)
     else:
+        kickoff = (raw or {}).get("startTime") or (fixture_meta or {}).get("startTime", "")
         historical = fetch_fixture_historical_odds(fixture_id, force_refresh=force_refresh)
         home_odds, draw_odds, away_odds, source = _extract_1x2_odds_historical(
-            historical, kickoff=raw.get("startTime", "")
+            historical, kickoff=kickoff
         )
 
+    meta = raw or fixture_meta or {}
     p_home, p_draw, p_away = devig_1x2(home_odds, draw_odds, away_odds)
 
     return MarketOdds(
-        fixture_id=raw.get("fixtureId", fixture_id),
-        home_team=raw.get("participant1Name", ""),
-        away_team=raw.get("participant2Name", ""),
-        date=raw.get("startTime", ""),
+        fixture_id=meta.get("fixtureId", fixture_id),
+        home_team=meta.get("participant1Name", ""),
+        away_team=meta.get("participant2Name", ""),
+        date=meta.get("startTime", ""),
         source=source,
         home_odds=home_odds,
         draw_odds=draw_odds,
@@ -605,7 +650,7 @@ if __name__ == "__main__":
         print(f"Found {len(fixtures)} finished World Cup fixtures.")
         if fixtures:
             first = fixtures[0]
-            odds = get_fixture_market_probabilities(first["fixtureId"])
+            odds = get_fixture_market_probabilities(first["fixtureId"], fixture_meta=first)
             print(
                 f"{odds.home_team} vs {odds.away_team} ({odds.source}): "
                 f"P(home)={odds.p_home:.1%} P(draw)={odds.p_draw:.1%} P(away)={odds.p_away:.1%}"

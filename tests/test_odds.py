@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import os
 import sys
+import tempfile
 import time
 import unittest
 from pathlib import Path
@@ -52,6 +53,41 @@ def _success_response(payload: dict) -> MagicMock:
     response.json.return_value = payload
     response.text = str(payload)
     return response
+
+
+def _forbidden_response() -> MagicMock:
+    """A 403, shaped like /v4/odds on a plan that doesn't include it."""
+    response = MagicMock()
+    response.status_code = 403
+    response.ok = False
+    response.headers = {}
+    response.json.return_value = {"error": "This endpoint is not available on your plan."}
+    response.text = "Forbidden"
+    return response
+
+
+def _historical_odds_payload(kickoff: str, home_price=2.0, draw_price=3.5, away_price=3.8) -> dict:
+    """A /v4/historical-odds body with a single pre-kickoff Pinnacle snapshot."""
+    snapshot_time = "2026-07-01T00:00:00Z"
+
+    def _outcome(price):
+        return {"players": {"0": [{"createdAt": snapshot_time, "price": price}]}}
+
+    return {
+        "bookmakers": {
+            "pinnacle": {
+                "markets": {
+                    odds.MATCH_WINNER_MARKET_ID: {
+                        "outcomes": {
+                            odds.OUTCOME_HOME: _outcome(home_price),
+                            odds.OUTCOME_DRAW: _outcome(draw_price),
+                            odds.OUTCOME_AWAY: _outcome(away_price),
+                        }
+                    }
+                }
+            }
+        }
+    }
 
 
 class RequestRetryTests(unittest.TestCase):
@@ -113,6 +149,74 @@ class RequestRetryTests(unittest.TestCase):
         for i, waited in enumerate(sleep_durations):
             expected_floor = odds.RETRY_BACKOFF_BASE_SECONDS * (2**i)
             self.assertGreaterEqual(waited, expected_floor - 1e-9)
+
+
+class AccessErrorFallbackTests(unittest.TestCase):
+    """Covers the /v4/odds-returns-403 scenario: OddsPapi's free tier
+    doesn't include live/current odds, only historical -- these confirm
+    get_fixture_market_probabilities falls back cleanly instead of
+    propagating the 403 and crashing the caller.
+    """
+
+    def setUp(self):
+        odds._last_request_time = None
+        os.environ["ODDSPAPI_API_KEY"] = "test-key-not-real"
+        # get_fixture_market_probabilities caches to disk -- point CACHE_DIR
+        # at a fresh temp directory per test so these never read/write the
+        # real data/odds_cache/, and a leftover file from one test can't
+        # mask the mocked requests.get in another.
+        tmpdir = tempfile.TemporaryDirectory()
+        self.addCleanup(tmpdir.cleanup)
+        patcher = patch("src.odds.CACHE_DIR", Path(tmpdir.name))
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    @patch("src.odds.time.sleep", return_value=None)
+    @patch("src.odds.requests.get")
+    def test_request_raises_access_error_on_403(self, mock_get, mock_sleep):
+        mock_get.return_value = _forbidden_response()
+
+        with self.assertRaises(odds.OddsApiAccessError):
+            odds._request("/v4/odds", {"fixtureId": "id123"})
+
+        # A 403 is not retried like a 429 -- it's a plan limitation, not a
+        # transient rate limit, so it should fail on the very first call.
+        self.assertEqual(mock_get.call_count, 1)
+
+    @patch("src.odds.time.sleep", return_value=None)
+    @patch("src.odds.requests.get")
+    def test_falls_back_to_historical_odds_on_403(self, mock_get, mock_sleep):
+        kickoff = "2026-07-09T18:00:00Z"
+        mock_get.side_effect = [
+            _forbidden_response(),  # /v4/odds -- 403, not on this plan
+            _success_response(_historical_odds_payload(kickoff)),  # /v4/historical-odds fallback
+        ]
+
+        result = odds.get_fixture_market_probabilities(
+            "id123", fixture_meta={"fixtureId": "id123", "startTime": kickoff}
+        )
+
+        self.assertEqual(mock_get.call_count, 2)
+        self.assertIn("closing line", result.source)
+        self.assertAlmostEqual(result.p_home + result.p_draw + result.p_away, 1.0, places=9)
+
+    @patch("src.odds.time.sleep", return_value=None)
+    @patch("src.odds.requests.get")
+    def test_403_without_any_kickoff_source_fails_clearly_not_silently(self, mock_get, mock_sleep):
+        # With no fixture_meta AND a 403 (so /v4/odds never returns its own
+        # startTime either), there's genuinely no kickoff time available to
+        # filter the historical snapshots to a pre-game price -- this must
+        # raise a clear OddsApiError, not silently return a wrong (e.g.
+        # in-play or post-match) price. In practice this doesn't happen on
+        # the real call path: get_market_probabilities_for_teams always
+        # supplies fixture_meta from the fixtures list it already has.
+        mock_get.side_effect = [
+            _forbidden_response(),
+            _success_response(_historical_odds_payload("2026-07-09T18:00:00Z")),
+        ]
+
+        with self.assertRaises(odds.OddsApiError):
+            odds.get_fixture_market_probabilities("id123")
 
 
 class ThrottleTests(unittest.TestCase):

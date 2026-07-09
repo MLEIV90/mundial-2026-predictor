@@ -103,7 +103,7 @@ from src.model import (
     fit_poisson_model,
     predict_match,
 )
-from src.odds import find_world_cup_fixtures, get_market_probabilities_for_teams
+from src.odds import OddsApiError, find_world_cup_fixtures, get_market_probabilities_for_teams
 
 # Empirically determined from the current results.csv structure (no explicit
 # "round" column exists): the first Round-of-32 match kicks off 2026-06-28,
@@ -609,7 +609,8 @@ def generate_live_predictions(
     Returns ``(records, model, as_of_date)``. Each record has the model's
     P(advance) for both teams, plus the market's current de-vigged
     P(advance) when a matching OddsPapi fixture is found (``None``
-    otherwise, e.g. if there's no API key or no name match).
+    otherwise, e.g. if there's no API key, no name match, or OddsPapi
+    itself fails for that fixture -- see below).
 
     results.csv is a live feed and can lag reality: a fixture can still
     show a missing score there while the match has already finished
@@ -619,6 +620,15 @@ def generate_live_predictions(
     "closing line" price because live odds are gone), that fixture is
     dropped from the results with a warning, since it is no longer a
     genuine pre-match prediction.
+
+    Market odds are never allowed to fail the whole run: any
+    ``OddsApiError`` (missing API key, rate limit exhausted, a plan-tier
+    403, etc.) while fetching the fixtures list or one fixture's odds is
+    caught and logged, and that fixture's record is still produced with
+    ``market_p_*_advances``/``market_source`` left ``None`` -- a
+    prediction with no market comparison is still useful, and a market
+    hiccup for one fixture shouldn't take down the whole pipeline (and
+    scripts/update_data.py with it).
     """
     df_elo, current_ratings = compute_elo_ratings(df)
     as_of_date = df_elo["date"].max() + pd.Timedelta(days=1)
@@ -629,7 +639,13 @@ def generate_live_predictions(
     # Force-refreshed for the same reason as in backtest_knockout_fixtures:
     # this list (which fixtures exist and their status) goes stale as the
     # tournament progresses, even though each fixture's own odds stay cached.
-    odds_fixtures = find_world_cup_fixtures(force_refresh=True)
+    # If even this fails, fall back to an empty list rather than aborting --
+    # every fixture below then just gets no market comparison.
+    try:
+        odds_fixtures = find_world_cup_fixtures(force_refresh=True)
+    except OddsApiError as exc:
+        print(f"Could not fetch the OddsPapi fixtures list ({exc}) -- continuing with no market data.")
+        odds_fixtures = []
 
     records: List[dict] = []
     for _, fixture in fixtures_to_predict.iterrows():
@@ -659,7 +675,12 @@ def generate_live_predictions(
             "market_source": None,
         }
 
-        market = get_market_probabilities_for_teams(odds_fixtures, home_team, away_team)
+        try:
+            market = get_market_probabilities_for_teams(odds_fixtures, home_team, away_team)
+        except OddsApiError as exc:
+            print(f"No market odds for {home_team} vs {away_team} ({exc}) -- model-only prediction.")
+            market = None
+
         if market is not None and "closing line" in market.source:
             print(
                 f"Skipping {home_team} vs {away_team}: market has already closed "
