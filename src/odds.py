@@ -83,12 +83,19 @@ OUTCOME_HOME = "101"
 OUTCOME_DRAW = "102"
 OUTCOME_AWAY = "103"
 
-# OddsPapi's own limit is ~0.87s between requests; a little margin above
-# that absorbs clock/scheduling jitter (a bare 0.88s margin was tight
-# enough to occasionally 429 in CI -- see _throttle()).
-MIN_REQUEST_INTERVAL_SECONDS = 1.0
+# OddsPapi's own per-request limit is ~0.87s between requests, but there
+# also appears to be a separate requests-per-window limit on top of that
+# (CI has been rate-limited with a reported retryAfter as low as 0.10s,
+# well under the per-request floor, which only makes sense as a second,
+# window-based limit) -- 1.5s gives extra margin against both, not just
+# clock/scheduling jitter on the per-request one. See _throttle().
+MIN_REQUEST_INTERVAL_SECONDS = 1.5
 REQUEST_TIMEOUT_SECONDS = 30
 
+# On a 429, back off at least this long, doubling each attempt: 1s, 2s,
+# 4s, 8s, 16s across 5 attempts (capped at RETRY_BACKOFF_MAX_SECONDS) --
+# generous enough to ride out a short rate-limit window, not just the
+# per-request floor. See _request().
 MAX_RETRY_ATTEMPTS = 5
 RETRY_BACKOFF_BASE_SECONDS = 1.0
 RETRY_BACKOFF_MAX_SECONDS = 30.0
