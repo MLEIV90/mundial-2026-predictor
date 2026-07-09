@@ -98,6 +98,16 @@ That script is the only one that calls OddsPapi (via `src/odds.py`, cached under
 in a `.env` file (see `.env.example`). Run it after each new match and commit the
 updated `data/app/*.json` files.
 
+## Automation
+
+A GitHub Actions workflow (`.github/workflows/update-data.yml`) runs
+`scripts/update_data.py` once a day (06:00 UTC) and commits the resulting
+`data/app/*.json` back to `main` if anything changed. It can also be triggered
+manually from the *Actions* tab (`workflow_dispatch`). The API key is read
+from the repository's `ODDSPAPI_API_KEY` secret, never hardcoded. If the
+script fails (e.g. the API quota is exhausted), the workflow fails and
+commits nothing.
+
 ## Limitations and future work
 
 - **Small sample:** the backtest covers the in-tournament knockout stage (~24
@@ -106,7 +116,6 @@ updated `data/app/*.json` files.
   more robust version would derive it automatically from results.
 - **Team-level data only:** no squad value (Transfermarkt) or player-level data,
   which the literature suggests improve prediction.
-- **Manual refresh:** could be automated with GitHub Actions.
 
 ## Stack
 

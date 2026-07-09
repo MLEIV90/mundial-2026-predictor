@@ -1,0 +1,49 @@
+name: Update app data
+
+on:
+  schedule:
+    # 06:00 UTC daily. Cron is best-effort on GitHub's shared runners -- the
+    # actual run time can drift by a few minutes, which is fine for a daily
+    # data refresh.
+    - cron: "0 6 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  update-data:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Refresh app data
+        # No .env file exists in CI -- ODDSPAPI_API_KEY comes from the env
+        # var below. load_dotenv() in src/odds.py is a no-op when no .env
+        # file is found, so this works the same way it does locally.
+        # Any failure here (e.g. API quota exhausted) fails the job and
+        # skips every step after it, so no partial data ever gets committed.
+        env:
+          ODDSPAPI_API_KEY: ${{ secrets.ODDSPAPI_API_KEY }}
+        run: python scripts/update_data.py
+
+      - name: Commit and push updated data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/app/*.json
+          if git diff --cached --quiet; then
+            echo "No changes to app data -- nothing to commit."
+          else
+            git commit -m "chore: auto-update app data [skip ci]"
+            git push
+          fi

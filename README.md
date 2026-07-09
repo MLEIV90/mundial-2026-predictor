@@ -100,6 +100,16 @@ Ese script es el único que llama a OddsPapi (vía `src/odds.py`, con caché en
 en un archivo `.env` (ver `.env.example`). Se corre después de cada jornada y
 se commitean los `data/app/*.json` actualizados.
 
+## Automatización
+
+Un workflow de GitHub Actions (`.github/workflows/update-data.yml`) corre
+`scripts/update_data.py` una vez por día (06:00 UTC) y commitea los
+`data/app/*.json` resultantes de vuelta a `main` si hubo cambios. También se
+puede disparar a mano desde la pestaña *Actions* (`workflow_dispatch`). La API
+key se lee desde el secret `ODDSPAPI_API_KEY` del repositorio, nunca
+hardcodeada. Si el script falla (p. ej. se agotó la cuota de la API), el
+workflow falla y no commitea nada.
+
 ## Limitaciones y mejoras futuras
 
 - **Muestra chica:** el backtest es sobre la eliminatoria en curso (~24
@@ -109,7 +119,6 @@ se commitean los `data/app/*.json` actualizados.
   ronda; una versión más robusta la derivaría automáticamente de los resultados.
 - **Solo datos de equipo:** no incorpora valor de plantel (Transfermarkt) ni
   datos a nivel jugador, que la literatura sugiere que mejoran la predicción.
-- **Actualización manual:** podría automatizarse con GitHub Actions.
 
 ## Stack
 
