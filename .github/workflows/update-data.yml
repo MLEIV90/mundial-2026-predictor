@@ -15,18 +15,45 @@ jobs:
   update-data:
     runs-on: ubuntu-latest
     steps:
+      - name: Check if the tournament is still active
+        id: expiry-check
+        # The final is 2026-07-19, so there's nothing left to refresh once
+        # we're past 2026-07-20 -- skip the rest of the job (successfully,
+        # not as a failure) rather than have the daily cron run forever.
+        # A manual "Run workflow" from the Actions tab always bypasses this
+        # (github.event_name == 'workflow_dispatch'), so the workflow can
+        # still be triggered on demand after the cutoff if ever needed.
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            echo "Manual workflow_dispatch run -- bypassing the expiry check."
+          else
+            today="$(date -u +%Y-%m-%d)"
+            cutoff="2026-07-20"
+            if [[ "$today" > "$cutoff" ]]; then
+              echo "should_run=false" >> "$GITHUB_OUTPUT"
+              echo "Tournament is over (final was 2026-07-19) and today ($today) is after $cutoff -- skipping scheduled run."
+            else
+              echo "should_run=true" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+
       - name: Checkout repository
+        if: steps.expiry-check.outputs.should_run == 'true'
         uses: actions/checkout@v4
 
       - name: Set up Python
+        if: steps.expiry-check.outputs.should_run == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
       - name: Install dependencies
+        if: steps.expiry-check.outputs.should_run == 'true'
         run: pip install -r requirements.txt
 
       - name: Refresh app data
+        if: steps.expiry-check.outputs.should_run == 'true'
         # No .env file exists in CI -- ODDSPAPI_API_KEY comes from the env
         # var below. load_dotenv() in src/odds.py is a no-op when no .env
         # file is found, so this works the same way it does locally.
@@ -37,6 +64,7 @@ jobs:
         run: python scripts/update_data.py
 
       - name: Commit and push updated data
+        if: steps.expiry-check.outputs.should_run == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
