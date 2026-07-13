@@ -1,45 +1,5 @@
 {
-  "generated_at": "2026-07-09T22:12:30.095439+00:00",
-  "model_as_of_date": "2026-07-08",
-  "predictions": [
-    {
-      "date": "2026-07-10",
-      "home_team": "Spain",
-      "away_team": "Belgium",
-      "neutral": true,
-      "home_elo_pre": 2242.4104880970817,
-      "away_elo_pre": 2041.595039261015,
-      "model_p_home_advances": 0.7512282054858946,
-      "model_p_away_advances": 0.24877179451410547,
-      "market_p_home_advances": 0.7040427713490552,
-      "market_p_away_advances": 0.29595722865094476,
-      "market_source": "pinnacle"
-    },
-    {
-      "date": "2026-07-11",
-      "home_team": "Norway",
-      "away_team": "England",
-      "neutral": true,
-      "home_elo_pre": 2041.9805909165127,
-      "away_elo_pre": 2150.0524148730588,
-      "model_p_home_advances": 0.3822216492925309,
-      "model_p_away_advances": 0.6177783507074691,
-      "market_p_home_advances": 0.3539696338495065,
-      "market_p_away_advances": 0.6460303661504935,
-      "market_source": "pinnacle"
-    },
-    {
-      "date": "2026-07-11",
-      "home_team": "Argentina",
-      "away_team": "Switzerland",
-      "neutral": true,
-      "home_elo_pre": 2234.3852496776676,
-      "away_elo_pre": 2024.0072066370496,
-      "model_p_home_advances": 0.7513289935391234,
-      "model_p_away_advances": 0.24867100646087648,
-      "market_p_home_advances": 0.6985668148711515,
-      "market_p_away_advances": 0.3014331851288486,
-      "market_source": "pinnacle"
-    }
-  ]
+  "generated_at": "2026-07-13T22:34:54.779139+00:00",
+  "model_as_of_date": "2026-07-12",
+  "predictions": []
 }

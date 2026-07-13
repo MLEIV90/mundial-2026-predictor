@@ -1,22 +1,22 @@
 {
-  "generated_at": "2026-07-09T22:12:30.095439+00:00",
-  "as_of_date": "2026-07-07",
+  "generated_at": "2026-07-13T22:34:54.779139+00:00",
+  "as_of_date": "2026-07-11",
   "ratings": [
     {
       "team": "Spain",
-      "elo": 2242.4104880971
+      "elo": 2256.7743259127
     },
     {
       "team": "Argentina",
-      "elo": 2234.3852496777
+      "elo": 2255.0418930853
     },
     {
       "team": "France",
-      "elo": 2206.7922653151
+      "elo": 2233.4031765315
     },
     {
       "team": "England",
-      "elo": 2150.0524148731
+      "elo": 2171.0104984382
     },
     {
       "team": "Colombia",
@@ -31,28 +31,28 @@
       "elo": 2060.1621381781
     },
     {
-      "team": "Morocco",
-      "elo": 2056.0103601805
-    },
-    {
       "team": "Netherlands",
       "elo": 2045.3941718287
     },
     {
-      "team": "Norway",
-      "elo": 2041.9805909165
+      "team": "Morocco",
+      "elo": 2029.3994489641
     },
     {
       "team": "Belgium",
-      "elo": 2041.595039261
+      "elo": 2027.2312014454
     },
     {
-      "team": "Switzerland",
-      "elo": 2024.007206637
+      "team": "Norway",
+      "elo": 2021.0225073514
     },
     {
       "team": "Mexico",
       "elo": 2013.8661844898
+    },
+    {
+      "team": "Switzerland",
+      "elo": 2003.3505632294
     },
     {
       "team": "Germany",
