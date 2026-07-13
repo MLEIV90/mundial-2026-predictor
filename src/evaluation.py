@@ -103,7 +103,12 @@ from src.model import (
     fit_poisson_model,
     predict_match,
 )
-from src.odds import OddsApiError, find_world_cup_fixtures, get_market_probabilities_for_teams
+from src.odds import (
+    OddsApiError,
+    OddsApiRateLimitError,
+    find_world_cup_fixtures,
+    get_market_probabilities_for_teams,
+)
 
 # Empirically determined from the current results.csv structure (no explicit
 # "round" column exists): the first Round-of-32 match kicks off 2026-06-28,
@@ -189,6 +194,7 @@ def backtest_knockout_fixtures(
     penalty_win_prob: float = DEFAULT_PENALTY_WIN_PROB,
     blend_weight: float = 1.0,
     verbose: bool = True,
+    finished_fixtures: Optional[List[dict]] = None,
 ) -> Tuple[pd.DataFrame, Dict[str, float]]:
     """Backtest the goals model against the betting market on already-played
     knockout fixtures in ``[start_date, end_date]``.
@@ -227,6 +233,12 @@ def backtest_knockout_fixtures(
     odds), ``model_brier``/``market_brier``, ``model_log_loss``/
     ``market_log_loss``, and ``n_model_beats_market`` (fixtures where the
     model's squared error was strictly lower than the market's).
+
+    ``finished_fixtures`` (optional) lets a caller that's also calling
+    ``backtest_90min_fixtures`` in the same run (e.g.
+    ``scripts/update_data.py``) pass in an already-fetched
+    ``find_world_cup_fixtures(status_id=2, ...)`` list instead of each
+    function force-refreshing its own -- see that parameter's use there.
     """
     start_date = pd.Timestamp(start_date)
     end_date = pd.Timestamp(end_date) if end_date is not None else df["date"].max()
@@ -235,11 +247,15 @@ def backtest_knockout_fixtures(
 
     window = df_elo[(df_elo["date"] >= start_date) & (df_elo["date"] <= end_date)].sort_values("date")
 
-    # The *list* of which fixtures count as finished changes as the tournament
-    # progresses, so it's force-refreshed here (one cheap call) even though
-    # each fixture's own odds lookup stays fully cached -- otherwise a fixture
-    # that finished after the list was last cached would be missed entirely.
-    finished_fixtures = find_world_cup_fixtures(status_id=2, force_refresh=True)
+    if finished_fixtures is None:
+        # The *list* of which fixtures count as finished changes as the
+        # tournament progresses, so it's force-refreshed here (one cheap
+        # call, and now that _find_world_cup_tournament_id no longer
+        # force-refreshes alongside it, the only call this actually makes)
+        # even though each fixture's own odds lookup stays fully cached --
+        # otherwise a fixture that finished after the list was last cached
+        # would be missed entirely.
+        finished_fixtures = find_world_cup_fixtures(status_id=2, force_refresh=True)
 
     model_cache: Dict[pd.Timestamp, GoalsModel] = {}
     rows: List[dict] = []
@@ -259,9 +275,19 @@ def backtest_knockout_fixtures(
                 )
             continue
 
-        market = get_market_probabilities_for_teams(
-            finished_fixtures, fixture["home_team"], fixture["away_team"]
-        )
+        try:
+            market = get_market_probabilities_for_teams(
+                finished_fixtures, fixture["home_team"], fixture["away_team"]
+            )
+        except OddsApiError as exc:
+            n_skipped += 1
+            if verbose:
+                print(
+                    f"Skipping {fixture['home_team']} vs {fixture['away_team']} "
+                    f"({fixture['date'].date()}): OddsPapi lookup failed ({exc})."
+                )
+            continue
+
         if market is None:
             n_skipped += 1
             if verbose:
@@ -328,6 +354,7 @@ def backtest_90min_fixtures(
     reg_strength: float = DEFAULT_REG_STRENGTH,
     blend_weight: float = 1.0,
     verbose: bool = True,
+    finished_fixtures: Optional[List[dict]] = None,
 ) -> Tuple[pd.DataFrame, Dict[str, float]]:
     """Fair, apples-to-apples backtest: model vs market on the 90-minute
     1X2 result only -- no extra-time/penalty logic on either side.
@@ -351,6 +378,10 @@ def backtest_90min_fixtures(
     multiclass versions, see module docstring), and
     ``n_model_beats_market`` (fixtures where the model's multiclass
     squared error was strictly lower than the market's).
+
+    ``finished_fixtures`` (optional): see ``backtest_knockout_fixtures``'s
+    docstring -- pass an already-fetched list to skip this function's own
+    ``find_world_cup_fixtures`` call.
     """
     start_date = pd.Timestamp(start_date)
     end_date = pd.Timestamp(end_date) if end_date is not None else df["date"].max()
@@ -358,16 +389,27 @@ def backtest_90min_fixtures(
     df_elo, _ = compute_elo_ratings(df)
     window = df_elo[(df_elo["date"] >= start_date) & (df_elo["date"] <= end_date)].sort_values("date")
 
-    finished_fixtures = find_world_cup_fixtures(status_id=2, force_refresh=True)
+    if finished_fixtures is None:
+        finished_fixtures = find_world_cup_fixtures(status_id=2, force_refresh=True)
 
     model_cache: Dict[pd.Timestamp, GoalsModel] = {}
     rows: List[dict] = []
     n_skipped = 0
 
     for _, fixture in window.iterrows():
-        market = get_market_probabilities_for_teams(
-            finished_fixtures, fixture["home_team"], fixture["away_team"]
-        )
+        try:
+            market = get_market_probabilities_for_teams(
+                finished_fixtures, fixture["home_team"], fixture["away_team"]
+            )
+        except OddsApiError as exc:
+            n_skipped += 1
+            if verbose:
+                print(
+                    f"Skipping {fixture['home_team']} vs {fixture['away_team']} "
+                    f"({fixture['date'].date()}): OddsPapi lookup failed ({exc})."
+                )
+            continue
+
         if market is None:
             n_skipped += 1
             if verbose:
@@ -446,6 +488,7 @@ def sweep_blend_weight(
     half_life_days: float = DEFAULT_HALF_LIFE_DAYS,
     reg_strength: float = DEFAULT_REG_STRENGTH,
     verbose: bool = True,
+    finished_fixtures: Optional[List[dict]] = None,
 ) -> pd.DataFrame:
     """Sweep ``blend_weight`` (see ``src.blend``) against the FAIR 90-minute
     backtest across every available knockout fixture, to pick the value
@@ -468,6 +511,10 @@ def sweep_blend_weight(
     ``blend_weight``, ``model_brier``, ``model_log_loss``, ``n_fixtures``,
     plus the (constant across rows) ``market_brier``/``market_log_loss``
     for reference.
+
+    ``finished_fixtures`` (optional): see ``backtest_knockout_fixtures``'s
+    docstring -- pass an already-fetched list to skip this function's own
+    ``find_world_cup_fixtures`` call.
     """
     if blend_weights is None:
         blend_weights = [round(w * 0.1, 1) for w in range(11)]  # 0.0, 0.1, ..., 1.0
@@ -478,7 +525,8 @@ def sweep_blend_weight(
     df_elo, _ = compute_elo_ratings(df)
     window = df_elo[(df_elo["date"] >= start_date) & (df_elo["date"] <= end_date)].sort_values("date")
 
-    finished_fixtures = find_world_cup_fixtures(status_id=2, force_refresh=True)
+    if finished_fixtures is None:
+        finished_fixtures = find_world_cup_fixtures(status_id=2, force_refresh=True)
 
     # Gather each fixture's market probs, actual outcome, and pre-fitted
     # model ONCE; every blend_weight candidate below just re-blends with
@@ -488,9 +536,19 @@ def sweep_blend_weight(
     n_skipped = 0
 
     for _, fixture in window.iterrows():
-        market = get_market_probabilities_for_teams(
-            finished_fixtures, fixture["home_team"], fixture["away_team"]
-        )
+        try:
+            market = get_market_probabilities_for_teams(
+                finished_fixtures, fixture["home_team"], fixture["away_team"]
+            )
+        except OddsApiError as exc:
+            n_skipped += 1
+            if verbose:
+                print(
+                    f"Skipping {fixture['home_team']} vs {fixture['away_team']} "
+                    f"({fixture['date'].date()}): OddsPapi lookup failed ({exc})."
+                )
+            continue
+
         if market is None:
             n_skipped += 1
             if verbose:
@@ -643,6 +701,13 @@ def generate_live_predictions(
     # every fixture below then just gets no market comparison.
     try:
         odds_fixtures = find_world_cup_fixtures(force_refresh=True)
+    except OddsApiRateLimitError as exc:
+        print(
+            f"OddsPapi rate-limited us even after retries ({exc}). This usually means the "
+            "free tier's monthly request quota has been exhausted -- try again once it "
+            "resets. Continuing with no market data for this run."
+        )
+        odds_fixtures = []
     except OddsApiError as exc:
         print(f"Could not fetch the OddsPapi fixtures list ({exc}) -- continuing with no market data.")
         odds_fixtures = []

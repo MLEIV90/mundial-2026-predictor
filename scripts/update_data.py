@@ -44,6 +44,7 @@ from src.evaluation import (
     save_backtest_json,
     save_predictions_json,
 )
+from src.odds import OddsApiError, OddsApiRateLimitError, find_world_cup_fixtures
 from src.simulation import (
     DEFAULT_N_SIMULATIONS,
     build_remaining_bracket,
@@ -81,37 +82,63 @@ def main() -> None:
     )
     print(f"  wrote {ratings_path}")
 
-    print("Backtesting the model against the market ('advance' APPROXIMATION -- see src/evaluation.py)...")
-    print("(refits the goals model per fixture date -- this takes a couple of minutes)")
-    print(f"(using blend_weight={DEFAULT_BLEND_WEIGHT} -- see src/blend.py for why)")
-    comparison, summary = backtest_knockout_fixtures(
-        matches, start_date=KNOCKOUT_START_DATE, blend_weight=DEFAULT_BLEND_WEIGHT
-    )
-    backtest_path = APP_DATA_DIR / "backtest.json"
-    save_backtest_json(comparison, summary, str(backtest_path), generated_at=generated_at)
-    print(f"  wrote {backtest_path}")
-    print(
-        f"  [approx., NOT a fair comparison] model Brier={summary['model_brier']:.4f} vs "
-        f"market Brier={summary['market_brier']:.4f} | model closer on "
-        f"{summary['n_model_beats_market']}/{summary['n_fixtures']} fixtures"
-    )
+    print("Fetching the OddsPapi finished-fixtures list (shared by both backtests below)...")
+    try:
+        finished_fixtures = find_world_cup_fixtures(status_id=2, force_refresh=True)
+    except OddsApiRateLimitError as exc:
+        print(
+            f"  OddsPapi rate-limited us even after retries ({exc}). This usually means "
+            "the free tier's monthly request quota has been exhausted -- try again once "
+            "it resets (see https://oddspapi.io/en/pricing), or run again later. "
+            "Continuing with no market data for this run."
+        )
+        finished_fixtures = []
+    except OddsApiError as exc:
+        print(f"  Could not fetch the OddsPapi fixtures list ({exc}) -- continuing with no market data.")
+        finished_fixtures = []
 
-    print("Backtesting the model against the market (FAIR 90-minute 1X2 comparison)...")
-    comparison_90, summary_90 = backtest_90min_fixtures(
-        matches, start_date=KNOCKOUT_START_DATE, blend_weight=DEFAULT_BLEND_WEIGHT
-    )
-    backtest_90_path = APP_DATA_DIR / "backtest_90min.json"
-    save_backtest_json(comparison_90, summary_90, str(backtest_90_path), generated_at=generated_at)
-    print(f"  wrote {backtest_90_path}")
-    print(
-        f"  [fair] model Brier={summary_90['model_brier']:.4f} vs market Brier={summary_90['market_brier']:.4f} | "
-        f"model closer on {summary_90['n_model_beats_market']}/{summary_90['n_fixtures']} fixtures "
-        "-- competitive with / on par with the market, not beating it"
-    )
-    print(
-        "  Note: small, in-tournament sample -- read both of the above as an early "
-        "signal, not a claim of long-run edge over the market."
-    )
+    if not finished_fixtures:
+        # No market data this run (API failure above) -- both backtests need
+        # it to compare against, and would otherwise just raise "no
+        # backtestable fixtures found" once every lookup comes back empty.
+        # Skip them and leave the previous data/app/backtest*.json in place
+        # rather than overwrite good data with an empty/misleading report.
+        print("Skipping both backtests -- no OddsPapi market data available this run.")
+        print("  (data/app/backtest.json and data/app/backtest_90min.json left unchanged.)")
+    else:
+        print("Backtesting the model against the market ('advance' APPROXIMATION -- see src/evaluation.py)...")
+        print("(refits the goals model per fixture date -- this takes a couple of minutes)")
+        print(f"(using blend_weight={DEFAULT_BLEND_WEIGHT} -- see src/blend.py for why)")
+        comparison, summary = backtest_knockout_fixtures(
+            matches, start_date=KNOCKOUT_START_DATE, blend_weight=DEFAULT_BLEND_WEIGHT,
+            finished_fixtures=finished_fixtures,
+        )
+        backtest_path = APP_DATA_DIR / "backtest.json"
+        save_backtest_json(comparison, summary, str(backtest_path), generated_at=generated_at)
+        print(f"  wrote {backtest_path}")
+        print(
+            f"  [approx., NOT a fair comparison] model Brier={summary['model_brier']:.4f} vs "
+            f"market Brier={summary['market_brier']:.4f} | model closer on "
+            f"{summary['n_model_beats_market']}/{summary['n_fixtures']} fixtures"
+        )
+
+        print("Backtesting the model against the market (FAIR 90-minute 1X2 comparison)...")
+        comparison_90, summary_90 = backtest_90min_fixtures(
+            matches, start_date=KNOCKOUT_START_DATE, blend_weight=DEFAULT_BLEND_WEIGHT,
+            finished_fixtures=finished_fixtures,
+        )
+        backtest_90_path = APP_DATA_DIR / "backtest_90min.json"
+        save_backtest_json(comparison_90, summary_90, str(backtest_90_path), generated_at=generated_at)
+        print(f"  wrote {backtest_90_path}")
+        print(
+            f"  [fair] model Brier={summary_90['model_brier']:.4f} vs market Brier={summary_90['market_brier']:.4f} | "
+            f"model closer on {summary_90['n_model_beats_market']}/{summary_90['n_fixtures']} fixtures "
+            "-- competitive with / on par with the market, not beating it"
+        )
+        print(
+            "  Note: small, in-tournament sample -- read both of the above as an early "
+            "signal, not a claim of long-run edge over the market."
+        )
 
     print("Generating live predictions for upcoming quarterfinal fixtures...")
     unplayed = find_unplayed_fixtures_in_window(matches, QUARTERFINAL_START_DATE, QUARTERFINAL_END_DATE)

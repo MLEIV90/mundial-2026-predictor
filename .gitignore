@@ -1,6 +1,13 @@
 # Data
 data/*
 !data/app/
+# OddsPapi response cache -- committed so it's warm on every machine/CI run
+# instead of every run re-hammering the free tier's monthly quota from a
+# cold cache (see src/odds.py's module docstring). Historical-odds
+# responses are cached in an already-trimmed form (a few bytes, not the
+# full raw multi-hundred-MB response) specifically so this stays small
+# enough to version -- see get_fixture_historical_1x2.
+!data/odds_cache/
 
 # Python
 __pycache__/

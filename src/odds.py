@@ -4,6 +4,11 @@ The free OddsPapi tier allows 250 requests/month, so this module treats
 the local cache (``data/odds_cache/``) as the source of truth and only
 ever calls the API for data it doesn't already have on disk. Re-running a
 notebook that only reads already-cached fixtures costs zero requests.
+The cache is committed to the repo (not gitignored) so it's warm from
+the first run on any machine or in CI -- see each cached function's
+docstring for its exact cache key, and ``get_fixture_historical_1x2``
+in particular for why it caches a small derived result rather than a
+raw API response.
 
 Authentication
 --------------
@@ -294,15 +299,22 @@ def fetch_fixture_odds(fixture_id: str, force_refresh: bool = False) -> dict:
     return data
 
 
-def _find_world_cup_tournament_id(tournament_name: str = "World Cup", force_refresh: bool = False) -> int:
+def _find_world_cup_tournament_id(tournament_name: str = "World Cup") -> int:
     """Resolve the tournamentId for ``tournament_name`` among soccer tournaments.
 
-    The tournament list is cheap and slow-changing, so it is cached too
-    (under ``data/odds_cache/tournaments_soccer.json``) even though the
-    caching contract emphasized in this module is per-fixture.
+    Deliberately has no ``force_refresh`` -- a tournament's id, once
+    assigned, never changes, so this is always served from cache (under
+    ``data/odds_cache/tournaments_soccer.json``) once fetched. Every
+    caller of ``find_world_cup_fixtures`` used to force-refresh this
+    alongside the (genuinely stale-able) fixtures list, which meant every
+    ``force_refresh=True`` fixtures-list call also uselessly re-hit
+    ``/v4/tournaments`` every time -- this was one of the two calls
+    behind the reported CI rate-limit failures (three call sites in
+    ``src/evaluation.py`` each force-refreshing the fixtures list, and
+    each dragging a needless ``/v4/tournaments`` re-fetch along with it).
     """
     cache_key = "tournaments_soccer"
-    tournaments = None if force_refresh else _cache_get(cache_key)
+    tournaments = _cache_get(cache_key)
     if tournaments is None:
         tournaments = _request("/v4/tournaments", {"sportId": SPORT_ID_SOCCER})
         _cache_put(cache_key, tournaments)
@@ -341,7 +353,7 @@ def find_world_cup_fixtures(
     with at least ``fixtureId``, ``participant1Name``, ``participant2Name``
     and ``startTime``.
     """
-    tournament_id = _find_world_cup_tournament_id(force_refresh=force_refresh)
+    tournament_id = _find_world_cup_tournament_id()
 
     params = {"sportId": SPORT_ID_SOCCER, "tournamentId": tournament_id}
     if from_date is not None:
@@ -478,10 +490,9 @@ def _extract_1x2_odds(raw: dict) -> Tuple[float, float, float, str]:
     return sum(homes) / n, sum(draws) / n, sum(aways) / n, f"average of {n} bookmakers"
 
 
-def fetch_fixture_historical_odds(
-    fixture_id: str, bookmakers: str = "pinnacle", force_refresh: bool = False
-) -> dict:
-    """Fetch the historical odds time series for one fixture.
+def _fetch_historical_odds_raw(fixture_id: str, bookmakers: str = "pinnacle") -> dict:
+    """Fetch the raw historical odds time series for one fixture. Not
+    cached -- see ``get_fixture_historical_1x2``, the only caller, for why.
 
     ``/v4/odds`` only has data for fixtures that haven't kicked off yet --
     for an already-played fixture it returns ``hasOdds: False`` with no
@@ -493,18 +504,9 @@ def fetch_fixture_historical_odds(
     ``bookmakers`` is a comma-separated list of at most 3 bookmaker slugs
     (an OddsPapi limit on this endpoint) and defaults to Pinnacle only,
     matching this module's bookmaker preference and keeping the call
-    cheap. Cached to
-    ``data/odds_cache/fixture_historical_{fixture_id}_{bookmakers}.json``.
+    cheap.
     """
-    cache_key = f"fixture_historical_{fixture_id}_{bookmakers}"
-    if not force_refresh:
-        cached = _cache_get(cache_key)
-        if cached is not None:
-            return cached
-
-    data = _request("/v4/historical-odds", {"fixtureId": fixture_id, "bookmakers": bookmakers})
-    _cache_put(cache_key, data)
-    return data
+    return _request("/v4/historical-odds", {"fixtureId": fixture_id, "bookmakers": bookmakers})
 
 
 def _closing_price(bookmaker: dict, outcome_id: str, kickoff: str) -> Optional[float]:
@@ -569,6 +571,47 @@ def _extract_1x2_odds_historical(raw: dict, kickoff: str) -> Tuple[float, float,
     return sum(homes) / n, sum(draws) / n, sum(aways) / n, f"average of {n} bookmakers (closing line)"
 
 
+def get_fixture_historical_1x2(
+    fixture_id: str, kickoff: str, bookmakers: str = "pinnacle", force_refresh: bool = False
+) -> Tuple[float, float, float, str]:
+    """Closing (pre-kickoff) 1X2 odds for one fixture from
+    ``/v4/historical-odds``, transparently cached.
+
+    Unlike every other cached call in this module, this does **not**
+    cache the raw API response -- ``/v4/historical-odds`` returns the
+    full tick-by-tick price history for every market and bookmaker on a
+    fixture, which runs to 100+MB of JSON for a single finished match.
+    Caching that (as this module used to) made ``data/odds_cache/``
+    balloon into the gigabytes, which is both impractical to commit to
+    git (individual files exceeded GitHub's 100MB push limit) and mostly
+    wasted, since only three numbers (the pre-kickoff 1X2 price) are ever
+    actually used. So the raw response is fetched, immediately reduced to
+    ``(home_odds, draw_odds, away_odds, source)`` via
+    ``_extract_1x2_odds_historical``, and only *that* small tuple is
+    persisted (to
+    ``data/odds_cache/fixture_historical_1x2_{fixture_id}_{bookmakers}.json``)
+    and returned.
+
+    ``kickoff`` (ISO 8601 UTC) is required up front (unlike the old raw
+    fetch) since it's needed to pick the closing price out of the time
+    series before anything gets cached -- see ``_closing_price``.
+    """
+    cache_key = f"fixture_historical_1x2_{fixture_id}_{bookmakers}"
+    if not force_refresh:
+        cached = _cache_get(cache_key)
+        if cached is not None:
+            return cached["home_odds"], cached["draw_odds"], cached["away_odds"], cached["source"]
+
+    raw = _fetch_historical_odds_raw(fixture_id, bookmakers=bookmakers)
+    home_odds, draw_odds, away_odds, source = _extract_1x2_odds_historical(raw, kickoff=kickoff)
+
+    _cache_put(
+        cache_key,
+        {"home_odds": home_odds, "draw_odds": draw_odds, "away_odds": away_odds, "source": source},
+    )
+    return home_odds, draw_odds, away_odds, source
+
+
 @dataclass
 class MarketOdds:
     """De-vigged 1X2 market probabilities for one fixture."""
@@ -619,9 +662,8 @@ def get_fixture_market_probabilities(
         home_odds, draw_odds, away_odds, source = _extract_1x2_odds(raw)
     else:
         kickoff = (raw or {}).get("startTime") or (fixture_meta or {}).get("startTime", "")
-        historical = fetch_fixture_historical_odds(fixture_id, force_refresh=force_refresh)
-        home_odds, draw_odds, away_odds, source = _extract_1x2_odds_historical(
-            historical, kickoff=kickoff
+        home_odds, draw_odds, away_odds, source = get_fixture_historical_1x2(
+            fixture_id, kickoff=kickoff, force_refresh=force_refresh
         )
 
     meta = raw or fixture_meta or {}
