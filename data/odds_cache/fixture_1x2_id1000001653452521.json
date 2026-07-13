@@ -1,0 +1,11 @@
+{
+  "fixtureId": "id1000001653452521",
+  "participant1Name": "Argentina",
+  "participant2Name": "Egypt",
+  "startTime": "2026-07-07T16:00:00.000Z",
+  "has_odds": true,
+  "home_odds": 1.392,
+  "draw_odds": 4.72,
+  "away_odds": 9.25,
+  "source": "pinnacle"
+}

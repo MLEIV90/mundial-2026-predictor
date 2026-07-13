@@ -1,0 +1,11 @@
+{
+  "fixtureId": "id1000001653452525",
+  "participant1Name": "France",
+  "participant2Name": "Morocco",
+  "startTime": "2026-07-09T20:00:00.000Z",
+  "has_odds": true,
+  "home_odds": 1.598,
+  "draw_odds": 3.87,
+  "away_odds": 6.53,
+  "source": "pinnacle"
+}

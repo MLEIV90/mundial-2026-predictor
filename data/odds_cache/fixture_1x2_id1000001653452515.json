@@ -1,0 +1,11 @@
+{
+  "fixtureId": "id1000001653452515",
+  "participant1Name": "USA",
+  "participant2Name": "Belgium",
+  "startTime": "2026-07-07T00:00:00.000Z",
+  "has_odds": true,
+  "home_odds": 2.66,
+  "draw_odds": 3.49,
+  "away_odds": 2.7,
+  "source": "pinnacle"
+}

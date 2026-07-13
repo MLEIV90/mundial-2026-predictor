@@ -1,0 +1,11 @@
+{
+  "fixtureId": "id1000001653452513",
+  "participant1Name": "Portugal",
+  "participant2Name": "Spain",
+  "startTime": "2026-07-06T19:00:00.000Z",
+  "has_odds": true,
+  "home_odds": 4.0,
+  "draw_odds": 3.71,
+  "away_odds": 1.943,
+  "source": "pinnacle"
+}

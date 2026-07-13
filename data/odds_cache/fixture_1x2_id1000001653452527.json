@@ -1,0 +1,11 @@
+{
+  "fixtureId": "id1000001653452527",
+  "participant1Name": "Spain",
+  "participant2Name": "Belgium",
+  "startTime": "2026-07-10T19:00:00.000Z",
+  "has_odds": true,
+  "home_odds": 1.628,
+  "draw_odds": 4.03,
+  "away_odds": 5.7,
+  "source": "pinnacle"
+}

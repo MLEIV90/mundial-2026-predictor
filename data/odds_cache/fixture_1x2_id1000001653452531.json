@@ -1,0 +1,11 @@
+{
+  "fixtureId": "id1000001653452531",
+  "participant1Name": "Argentina",
+  "participant2Name": "Switzerland",
+  "startTime": "2026-07-12T01:00:00.000Z",
+  "has_odds": true,
+  "home_odds": 1.729,
+  "draw_odds": 3.54,
+  "away_odds": 5.67,
+  "source": "pinnacle"
+}

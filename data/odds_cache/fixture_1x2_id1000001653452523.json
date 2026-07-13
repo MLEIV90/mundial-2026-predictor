@@ -1,0 +1,11 @@
+{
+  "fixtureId": "id1000001653452523",
+  "participant1Name": "Switzerland",
+  "participant2Name": "Colombia",
+  "startTime": "2026-07-07T20:00:00.000Z",
+  "has_odds": true,
+  "home_odds": 3.53,
+  "draw_odds": 3.09,
+  "away_odds": 2.35,
+  "source": "pinnacle"
+}

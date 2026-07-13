@@ -1,0 +1,11 @@
+{
+  "fixtureId": "id1000001653452529",
+  "participant1Name": "Norway",
+  "participant2Name": "England",
+  "startTime": "2026-07-11T21:00:00.000Z",
+  "has_odds": true,
+  "home_odds": 4.33,
+  "draw_odds": 3.77,
+  "away_odds": 1.854,
+  "source": "pinnacle"
+}

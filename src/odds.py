@@ -6,9 +6,13 @@ ever calls the API for data it doesn't already have on disk. Re-running a
 notebook that only reads already-cached fixtures costs zero requests.
 The cache is committed to the repo (not gitignored) so it's warm from
 the first run on any machine or in CI -- see each cached function's
-docstring for its exact cache key, and ``get_fixture_historical_1x2``
-in particular for why it caches a small derived result rather than a
-raw API response.
+docstring for its exact cache key. ``get_fixture_odds_1x2`` and
+``get_fixture_historical_1x2`` in particular cache a small derived
+result rather than the raw API response, since ``/v4/odds`` and
+``/v4/historical-odds`` can each run to tens of MB per fixture and only
+a handful of fields from either are ever actually used -- caching the
+raw responses (as this module briefly did) made the committed cache
+balloon well past what's reasonable to version in git.
 
 Authentication
 --------------
@@ -274,13 +278,37 @@ def _cache_put(cache_key: str, data) -> None:
     (CACHE_DIR / f"{cache_key}.json").write_text(json.dumps(data, indent=2), encoding="utf-8")
 
 
-def fetch_fixture_odds(fixture_id: str, force_refresh: bool = False) -> dict:
-    """Fetch raw pre-game odds for one fixture, transparently cached.
+def _fetch_odds_raw(fixture_id: str) -> dict:
+    """Fetch the raw ``/v4/odds`` response for one fixture. Not cached --
+    see ``get_fixture_odds_1x2``, the only caller, for why.
 
-    Every response is cached to ``data/odds_cache/{fixture_id}.json``. If
-    that file already exists, it is returned directly and the API is
-    never called (and no API key is required). Pass ``force_refresh=True``
-    to bypass the cache and re-fetch from the API.
+    Requested with ``verbosity=3`` (every bookmaker's full market data,
+    not just the 1X2 outcomes this module actually reads), which is why
+    the raw response isn't what gets persisted.
+    """
+    return _request("/v4/odds", {"fixtureId": fixture_id, "oddsFormat": "decimal", "verbosity": 3})
+
+
+def get_fixture_odds_1x2(fixture_id: str, force_refresh: bool = False) -> dict:
+    """Fetch the live pre-game 1X2 odds for one fixture, caching only a
+    small extracted summary rather than the raw ``/v4/odds`` response.
+
+    ``verbosity=3`` on ``/v4/odds`` returns full market data for every
+    bookmaker covering the fixture -- tens of MB of JSON per fixture, of
+    which only the fixture's own metadata (teams, kickoff) and, if
+    present, the extracted 1X2 price are ever used. Caching the raw
+    response (as this module used to) made ``data/odds_cache/`` balloon
+    with dozens of multi-megabyte files well past what's reasonable to
+    version in git -- the same problem, and the same fix, as
+    ``get_fixture_historical_1x2`` for ``/v4/historical-odds``.
+
+    Cached to ``data/odds_cache/fixture_1x2_{fixture_id}.json`` as
+    ``{"fixtureId", "participant1Name", "participant2Name", "startTime",
+    "has_odds", and -- only if has_odds -- "home_odds"/"draw_odds"/
+    "away_odds"/"source"}``. ``has_odds`` is False when the fixture has
+    already kicked off and ``/v4/odds`` has nothing (``hasOdds: False``
+    in the raw response) -- callers fall back to
+    ``get_fixture_historical_1x2`` in that case, same as before.
 
     Raises ``OddsApiAccessError`` (HTTP 403) if ``/v4/odds`` isn't
     included in the current OddsPapi plan -- callers that want the
@@ -288,15 +316,29 @@ def fetch_fixture_odds(fixture_id: str, force_refresh: bool = False) -> dict:
     ``get_fixture_market_probabilities`` instead of calling this
     directly.
     """
-    cache_key = f"fixture_{fixture_id}"
+    cache_key = f"fixture_1x2_{fixture_id}"
     if not force_refresh:
         cached = _cache_get(cache_key)
         if cached is not None:
             return cached
 
-    data = _request("/v4/odds", {"fixtureId": fixture_id, "oddsFormat": "decimal", "verbosity": 3})
-    _cache_put(cache_key, data)
-    return data
+    raw = _fetch_odds_raw(fixture_id)
+
+    result = {
+        "fixtureId": raw.get("fixtureId", fixture_id),
+        "participant1Name": raw.get("participant1Name", ""),
+        "participant2Name": raw.get("participant2Name", ""),
+        "startTime": raw.get("startTime", ""),
+        "has_odds": bool(raw.get("bookmakerOdds")),
+    }
+    if result["has_odds"]:
+        home_odds, draw_odds, away_odds, source = _extract_1x2_odds(raw)
+        result.update(
+            {"home_odds": home_odds, "draw_odds": draw_odds, "away_odds": away_odds, "source": source}
+        )
+
+    _cache_put(cache_key, result)
+    return result
 
 
 def _find_world_cup_tournament_id(tournament_name: str = "World Cup") -> int:
@@ -654,12 +696,14 @@ def get_fixture_market_probabilities(
     de-vigged market-implied P(home)/P(draw)/P(away).
     """
     try:
-        raw: Optional[dict] = fetch_fixture_odds(fixture_id, force_refresh=force_refresh)
+        raw: Optional[dict] = get_fixture_odds_1x2(fixture_id, force_refresh=force_refresh)
     except OddsApiAccessError:
         raw = None
 
-    if raw is not None and raw.get("bookmakerOdds"):
-        home_odds, draw_odds, away_odds, source = _extract_1x2_odds(raw)
+    if raw is not None and raw.get("has_odds"):
+        home_odds, draw_odds, away_odds, source = (
+            raw["home_odds"], raw["draw_odds"], raw["away_odds"], raw["source"],
+        )
     else:
         kickoff = (raw or {}).get("startTime") or (fixture_meta or {}).get("startTime", "")
         home_odds, draw_odds, away_odds, source = get_fixture_historical_1x2(
