@@ -370,7 +370,7 @@ with tab1:
                     st.metric(f"{away} advances", _fmt_pct(market_away))
 
                 if market_home is None:
-                    st.info("No market odds available for this fixture yet.")
+                    st.info("Market odds for this fixture aren't published yet — showing the model's prediction only.")
                 else:
                     model_favors_home = model_home >= 0.5
                     market_favors_home = market_home >= 0.5
