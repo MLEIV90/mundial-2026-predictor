@@ -41,6 +41,12 @@ jobs:
       - name: Checkout repository
         if: steps.expiry-check.outputs.should_run == 'true'
         uses: actions/checkout@v4
+        with:
+          # Full history (not the default shallow clone) so the rebase in
+          # the commit-and-push step below has a common ancestor with
+          # origin/main to rebase onto, however far behind this checkout
+          # has fallen since a shallow clone started.
+          fetch-depth: 0
 
       - name: Set up Python
         if: steps.expiry-check.outputs.should_run == 'true'
@@ -71,7 +77,19 @@ jobs:
           git add data/app/*.json
           if git diff --cached --quiet; then
             echo "No changes to app data -- nothing to commit."
-          else
-            git commit -m "chore: auto-update app data [skip ci]"
+            exit 0
+          fi
+          git commit -m "chore: auto-update app data [skip ci]"
+
+          # The runner's checkout can fall behind main between the checkout
+          # step and this one (e.g. someone else pushed in the meantime),
+          # which makes a plain `git push` get rejected as a non-fast-forward.
+          # Rebase onto the latest main first so our commit applies on top
+          # of anything new, then push; if a second push still lands in that
+          # same race, rebase and retry once more before giving up loudly.
+          git pull --rebase origin main
+          if ! git push; then
+            echo "Push rejected -- pulling --rebase again and retrying once."
+            git pull --rebase origin main
             git push
           fi
