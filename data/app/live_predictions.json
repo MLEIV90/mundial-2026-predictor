@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-13T23:57:57.107167+00:00",
+  "generated_at": "2026-07-14T01:29:47.288451+00:00",
   "model_as_of_date": "2026-07-12",
   "predictions": [
     {
@@ -9,8 +9,8 @@
       "neutral": true,
       "home_elo_pre": 2233.4031765315085,
       "away_elo_pre": 2256.7743259126655,
-      "model_p_home_advances": 0.45366580981598265,
-      "model_p_away_advances": 0.5463341901840174,
+      "model_p_home_advances": 0.45353837119782764,
+      "model_p_away_advances": 0.5464616288021724,
       "market_p_home_advances": null,
       "market_p_away_advances": null,
       "market_source": null
@@ -22,8 +22,8 @@
       "neutral": true,
       "home_elo_pre": 2171.0104984381783,
       "away_elo_pre": 2255.041893085313,
-      "model_p_home_advances": 0.38730067552073055,
-      "model_p_away_advances": 0.6126993244792694,
+      "model_p_home_advances": 0.3885946543432102,
+      "model_p_away_advances": 0.61140534565679,
       "market_p_home_advances": null,
       "market_p_away_advances": null,
       "market_source": null
