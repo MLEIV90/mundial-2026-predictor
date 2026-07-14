@@ -101,15 +101,13 @@ def _tie_probs(model, current_ratings: dict, home: str, away: str, neutral: bool
     )
 
 
-# Confirmed quarterfinals -- the round of 16 is complete, so all 8
-# quarterfinalists are known (see src/simulation.py for the full bracket
-# definition used by the Monte Carlo simulation). None of the remaining 8
+# Confirmed semifinals -- the quarterfinals are complete, so all 4
+# semifinalists are known (see src/simulation.py for the full bracket
+# definition used by the Monte Carlo simulation). None of the remaining 4
 # teams is a co-host nation, so every tie from here on is neutral.
-QF_TIES = [
-    ("QF1", "France", "Morocco", True),
-    ("QF2", "Spain", "Belgium", True),
-    ("QF3", "Argentina", "Switzerland", True),
-    ("QF4", "England", "Norway", True),
+SF_TIES = [
+    ("SF1", "France", "Spain", True),
+    ("SF2", "England", "Argentina", True),
 ]
 
 # Bracket geometry: every position is computed once, in Python, rather than
@@ -119,30 +117,26 @@ QF_TIES = [
 CARD_W = 208
 CARD_H = 62
 COL_GAP = 64
-ROW_STEP = 86  # center-to-center spacing between adjacent Quarterfinal cards
+ROW_STEP = 86  # center-to-center spacing between adjacent Semifinal cards
 
 
 def _bracket_geometry():
     """Compute (x, y_center) for every card and the connector line segments.
 
-    Every quarterfinal is confirmed (round of 16 complete), so the bracket
-    is a plain, fully symmetric QF -> SF -> Final tree: 4 QF cards evenly
-    spaced, each adjacent pair feeding a semifinal, both semifinals feeding
-    the final.
+    Both semifinals are confirmed (quarterfinals complete), so the
+    bracket is a plain, fully symmetric SF -> Final tree: 2 SF cards
+    evenly spaced, both feeding the final.
     """
-    qf_y = [CARD_H / 2 + i * ROW_STEP for i in range(4)]
-    sf1_y = (qf_y[0] + qf_y[1]) / 2
-    sf2_y = (qf_y[2] + qf_y[3]) / 2
-    final_y = (sf1_y + sf2_y) / 2
+    sf_y = [CARD_H / 2 + i * ROW_STEP for i in range(2)]
+    final_y = (sf_y[0] + sf_y[1]) / 2
 
-    all_y = qf_y + [sf1_y, sf2_y, final_y]
+    all_y = sf_y + [final_y]
     shift = CARD_H / 2 - min(all_y)
 
-    col_x = [i * (CARD_W + COL_GAP) for i in range(3)]
+    col_x = [i * (CARD_W + COL_GAP) for i in range(2)]
 
     return {
-        "qf_y": [y + shift for y in qf_y],
-        "sf_y": [sf1_y + shift, sf2_y + shift],
+        "sf_y": [y + shift for y in sf_y],
         "final_y": final_y + shift,
         "col_x": col_x,
         "total_h": max(all_y) - min(all_y) + CARD_H,
@@ -231,7 +225,7 @@ BRACKET_CSS = f"""
 def render_bracket(model, current_ratings: dict) -> None:
     st.subheader("Remaining Bracket")
     st.caption(
-        "The round of 16 is complete -- the quarterfinals are the current round. "
+        "The quarterfinals are complete -- the semifinals are the current round. "
         "Confirmed ties show the model's P(advance) with the favored team highlighted; "
         "undetermined slots (dashed) show the pending matchup."
     )
@@ -242,7 +236,7 @@ def render_bracket(model, current_ratings: dict) -> None:
     parts = [BRACKET_CSS]
     parts.append(
         '<div class="bx-wrap"><div class="bx-headers">'
-        '<div>Quarterfinals</div><div>Semifinals</div><div>Final</div>'
+        '<div>Semifinals</div><div>Final</div>'
         "</div>"
     )
     parts.append(f'<div class="bx-canvas" style="height:{geo["total_h"]:.0f}px; width:{geo["total_w"]:.0f}px;">')
@@ -255,24 +249,18 @@ def render_bracket(model, current_ratings: dict) -> None:
             f'<div class="bx-col-bg" style="left:{x - 10:.1f}px; width:{CARD_W + 20}px; height:{band_h:.0f}px;"></div>'
         )
 
-    # Quarterfinals (all 4 confirmed -- round of 16 is complete)
-    for i, (label, home, away, neutral) in enumerate(QF_TIES):
+    # Semifinals (both confirmed -- quarterfinals complete)
+    for i, (label, home, away, neutral) in enumerate(SF_TIES):
         adv = _tie_probs(model, current_ratings, home, away, neutral)
         parts.append(
-            _decided_card_html(col_x[0], geo["qf_y"][i], label, home, away, adv.p_a_advances, adv.p_b_advances)
+            _decided_card_html(col_x[0], geo["sf_y"][i], label, home, away, adv.p_a_advances, adv.p_b_advances)
         )
 
-    # Semifinals + Final (undetermined -- depend on quarterfinal results)
-    parts.append(_pending_card_html(col_x[1], geo["sf_y"][0], "SF1", "Winner QF1", "Winner QF2"))
-    parts.append(_pending_card_html(col_x[1], geo["sf_y"][1], "SF2", "Winner QF3", "Winner QF4"))
-    parts.append(_pending_card_html(col_x[2], geo["final_y"], "Final", "Winner SF1", "Winner SF2"))
+    # Final (undetermined -- depends on semifinal results)
+    parts.append(_pending_card_html(col_x[1], geo["final_y"], "Final", "Winner SF1", "Winner SF2"))
 
-    # Connectors: QF -> SF, SF -> Final
+    # Connector: SF -> Final
     card_right = col_x[0] + CARD_W
-    parts.append(_connector_html(geo["qf_y"][0], geo["qf_y"][1], card_right, COL_GAP))
-    parts.append(_connector_html(geo["qf_y"][2], geo["qf_y"][3], card_right, COL_GAP))
-
-    card_right = col_x[1] + CARD_W
     parts.append(_connector_html(geo["sf_y"][0], geo["sf_y"][1], card_right, COL_GAP))
 
     parts.append("</div></div>")
@@ -710,15 +698,18 @@ with tab4:
         )
 
         st.subheader("Full stage-by-stage probabilities")
+        # No "Reach QF" column: the bracket now starts at the semifinals, so
+        # every remaining team already has p_quarterfinal=0 (there's no
+        # "QF"-labeled tie left in the tree to credit them for) -- a column
+        # that's 0% for every row isn't useful information.
         display_df = sim_df.rename(
             columns={
                 "team": "Team",
-                "p_quarterfinal": "Reach QF",
                 "p_semifinal": "Reach SF",
                 "p_final": "Reach Final",
                 "p_champion": "Win Title",
             }
-        )
-        for col in ["Reach QF", "Reach SF", "Reach Final", "Win Title"]:
+        )[["Team", "Reach SF", "Reach Final", "Win Title"]]
+        for col in ["Reach SF", "Reach Final", "Win Title"]:
             display_df[col] = display_df[col].map(lambda v: f"{v:.1%}")
         st.dataframe(display_df, hide_index=True, use_container_width=True)

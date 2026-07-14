@@ -8,13 +8,12 @@ winning the title outright.
 The bracket
 -----------
 ``build_remaining_bracket`` hardcodes the actual remaining bracket as of
-the quarterfinals (the round of 16 is complete): all 8 quarterfinalists
-are confirmed -- QF1 France vs Morocco, QF2 Spain vs Belgium, QF3
-Argentina vs Switzerland, QF4 England vs Norway. It's a tree of ``Tie``
-nodes, where each side is either a confirmed team name or another (still
-to be played) ``Tie`` whose winner fills that slot -- currently every
-leaf is a confirmed team, since nothing is still to be determined above
-the quarterfinal round.
+the semifinals (the quarterfinals are complete): all 4 semifinalists are
+confirmed -- SF1 France vs Spain, SF2 England vs Argentina. It's a tree
+of ``Tie`` nodes, where each side is either a confirmed team name or
+another (still to be played) ``Tie`` whose winner fills that slot --
+currently every leaf is a confirmed team, since nothing is still to be
+determined above the semifinal round.
 
 How a single simulation run works
 -----------------------------------
@@ -94,28 +93,18 @@ def _stage_of(label: str) -> Optional[str]:
 
 
 def build_remaining_bracket() -> Tie:
-    """The actual remaining 2026 World Cup bracket, as of the quarterfinals.
+    """The actual remaining 2026 World Cup bracket, as of the semifinals.
 
-    The round of 16 is complete, so all 8 quarterfinalists are confirmed
-    and every leaf below is a plain team name -- none of the QF/SF/Final
+    The quarterfinals are complete, so all 4 semifinalists are confirmed
+    and every leaf below is a plain team name -- neither the SF nor Final
     ties are still waiting on an earlier round to resolve. None of the
-    remaining 8 teams is a co-host nation (USA, Canada, Mexico were all
-    eliminated in earlier rounds), so every tie from here on is neutral.
+    remaining 4 teams is a co-host nation, so every tie from here on is
+    neutral.
     """
     return Tie(
         "Final",
-        home=Tie(
-            "SF1",
-            home=Tie("QF1", home="France", away="Morocco", neutral=True),
-            away=Tie("QF2", home="Spain", away="Belgium", neutral=True),
-            neutral=True,
-        ),
-        away=Tie(
-            "SF2",
-            home=Tie("QF3", home="Argentina", away="Switzerland", neutral=True),
-            away=Tie("QF4", home="England", away="Norway", neutral=True),
-            neutral=True,
-        ),
+        home=Tie("SF1", home="France", away="Spain", neutral=True),
+        away=Tie("SF2", home="England", away="Argentina", neutral=True),
         neutral=True,
     )
 
@@ -176,8 +165,10 @@ def simulate_tournament(
     Returns a DataFrame with one row per team still alive in the bracket
     and columns ``p_quarterfinal``/``p_semifinal``/``p_final``/
     ``p_champion``, sorted by ``p_champion`` descending. Teams already
-    confirmed for a stage (e.g. France and Morocco are already
-    quarterfinalists) show probability 1.0 for that stage, as expected.
+    confirmed for a stage (e.g. France and Spain are already
+    semifinalists) show probability 1.0 for that stage, as expected --
+    ``p_quarterfinal`` is 0 for everyone now that the bracket starts at
+    the semifinals (no "QF"-labeled tie exists in it anymore to credit).
     """
     bracket = bracket or build_remaining_bracket()
     rng = random.Random(seed)
