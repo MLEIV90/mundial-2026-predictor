@@ -1,20 +1,7 @@
 {
-  "generated_at": "2026-07-14T23:45:27.050877+00:00",
-  "model_as_of_date": "2026-07-12",
+  "generated_at": "2026-07-15T08:08:31.159502+00:00",
+  "model_as_of_date": "2026-07-15",
   "predictions": [
-    {
-      "date": "2026-07-14",
-      "home_team": "France",
-      "away_team": "Spain",
-      "neutral": true,
-      "home_elo_pre": 2233.4031765315085,
-      "away_elo_pre": 2256.7743259126655,
-      "model_p_home_advances": 0.45353837119782764,
-      "model_p_away_advances": 0.5464616288021724,
-      "market_p_home_advances": null,
-      "market_p_away_advances": null,
-      "market_source": null
-    },
     {
       "date": "2026-07-15",
       "home_team": "England",
@@ -22,8 +9,8 @@
       "neutral": true,
       "home_elo_pre": 2171.0104984381783,
       "away_elo_pre": 2255.041893085313,
-      "model_p_home_advances": 0.3885946543432102,
-      "model_p_away_advances": 0.61140534565679,
+      "model_p_home_advances": 0.3885401249802246,
+      "model_p_away_advances": 0.6114598750197754,
       "market_p_home_advances": null,
       "market_p_away_advances": null,
       "market_source": null
