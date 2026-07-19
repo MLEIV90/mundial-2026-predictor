@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-18T07:48:08.964138+00:00",
-  "as_of_date": "2026-07-16",
+  "generated_at": "2026-07-19T08:15:45.985010+00:00",
+  "as_of_date": "2026-07-19",
   "n_simulations": 20000,
   "bracket": {
     "label": "Final",
@@ -31,29 +31,29 @@
       "team": "Spain",
       "p_quarterfinal": 0.0,
       "p_semifinal": 1.0,
-      "p_final": 0.6718,
-      "p_champion": 0.3898
+      "p_final": 0.74595,
+      "p_champion": 0.42385
     },
     {
       "team": "Argentina",
       "p_quarterfinal": 0.0,
       "p_semifinal": 1.0,
-      "p_final": 0.66805,
-      "p_champion": 0.3499
-    },
-    {
-      "team": "France",
-      "p_quarterfinal": 0.0,
-      "p_semifinal": 1.0,
-      "p_final": 0.3282,
-      "p_champion": 0.14155
+      "p_final": 0.6082,
+      "p_champion": 0.32245
     },
     {
       "team": "England",
       "p_quarterfinal": 0.0,
       "p_semifinal": 1.0,
-      "p_final": 0.33195,
-      "p_champion": 0.11875
+      "p_final": 0.3918,
+      "p_champion": 0.16765
+    },
+    {
+      "team": "France",
+      "p_quarterfinal": 0.0,
+      "p_semifinal": 1.0,
+      "p_final": 0.25405,
+      "p_champion": 0.08605
     }
   ]
 }
